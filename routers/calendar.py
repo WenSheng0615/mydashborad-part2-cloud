@@ -10,7 +10,6 @@ from googleapiclient.discovery import build
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
-# Redis
 r = redis.Redis(
     host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
     port=11812, decode_responses=True, username="default",
@@ -34,35 +33,20 @@ async def get_events(year: int, month: int):
     try:
         service = get_calendar_service()
         if not service: return JSONResponse({"error": "Login Required"}, 401)
-
         start_date = datetime(year, month, 1)
         if month == 12: end_date = datetime(year + 1, 1, 1)
         else: end_date = datetime(year, month + 1, 1)
-
-        events_result = service.events().list(
-            calendarId='primary', 
-            timeMin=start_date.isoformat() + 'Z', 
-            timeMax=end_date.isoformat() + 'Z',
-            singleEvents=True, 
-            orderBy='startTime'
-        ).execute()
-        
+        events_result = service.events().list(calendarId='primary', timeMin=start_date.isoformat() + 'Z', timeMax=end_date.isoformat() + 'Z', singleEvents=True, orderBy='startTime').execute()
         formatted = []
         for e in events_result.get('items', []):
             is_all_day = 'date' in e['start']
             start = e['start'].get('dateTime', e['start'].get('date'))
             end = e['end'].get('dateTime', e['end'].get('date'))
-            formatted.append({
-                'id': e['id'], 'summary': e.get('summary', '(無標題)'),
-                'description': e.get('description', ''),
-                'start': start, 'end': end, 'is_all_day': is_all_day,
-                'location': e.get('location', ''), 'htmlLink': e.get('htmlLink')
-            })
+            formatted.append({'id': e['id'], 'summary': e.get('summary', '(無標題)'), 'description': e.get('description', ''), 'start': start, 'end': end, 'is_all_day': is_all_day, 'location': e.get('location', ''), 'htmlLink': e.get('htmlLink')})
         return JSONResponse({"events": formatted})
     except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
-# 其他 add/update/delete 邏輯不變，略過以省空間 (只改 service 取得部分即可)
-# 請保留您原本的 post methods，它們會自動呼叫新的 get_calendar_service
+# CRUD 函式 (add, update, delete, build_event_body) 保持原樣，只改 service 取得方式，請務必保留它們！
 @router.post("/add")
 async def add_event(summary: str = Form(...), description: str = Form(""), start_date: str = Form(...), start_time: str = Form(""), end_date: str = Form(...), end_time: str = Form(""), is_all_day: str = Form("false")):
     try:

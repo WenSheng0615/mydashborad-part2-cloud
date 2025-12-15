@@ -10,14 +10,10 @@ from googleapiclient.http import MediaIoBaseUpload
 
 router = APIRouter(prefix="/api/drive", tags=["drive"])
 
-# Redis
 r = redis.Redis(
     host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
-    port=11812,
-    decode_responses=True,
-    username="default",
-    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT",
-    socket_timeout=5
+    port=11812, decode_responses=True, username="default",
+    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT", socket_timeout=5
 )
 
 def get_drive_service():
@@ -27,51 +23,34 @@ def get_drive_service():
         info = json.loads(token_json)
         creds = Credentials.from_authorized_user_info(info)
         if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-                r.set("auth:google_token", creds.to_json())
-            except: return None
+            creds.refresh(Request())
+            r.set("auth:google_token", creds.to_json())
         return build('drive', 'v3', credentials=creds)
     except: return None
 
 @router.get("/files")
 async def get_drive_files(folder_id: str = 'root', query: str = None, file_type: str = None):
-    # ★★★ 關鍵：讀取登入版本號，強制刷新快取 ★★★
     token_version = r.get("auth:version") or "0"
-    
-    # Key 包含版本號，換帳號時 Key 會變，舊資料自動失效
     cache_key = f"drive:files:v{token_version}:{folder_id}:{query}:{file_type}"
-    
     try:
-        if r.exists(cache_key):
-            return JSONResponse(content={"source": "redis", "files": json.loads(r.get(cache_key))})
+        if r.exists(cache_key): return JSONResponse(content={"source": "redis", "files": json.loads(r.get(cache_key))})
     except: pass
 
     try:
         service = get_drive_service()
         if not service: return JSONResponse({"error": "Login Required"}, 401)
-        
         filters = ["trashed = false"]
         if query: filters.append(f"name contains '{query}'")
         else: filters.append(f"'{folder_id}' in parents")
-
         if file_type == 'folder': filters.append("mimeType = 'application/vnd.google-apps.folder'")
         elif file_type == 'image': filters.append("mimeType contains 'image/'")
         elif file_type == 'pdf': filters.append("mimeType = 'application/pdf'")
-        
-        results = service.files().list(
-            q=" and ".join(filters), pageSize=50,
-            fields="files(id, name, mimeType, webViewLink, iconLink, thumbnailLink, modifiedTime)",
-            orderBy="folder, modifiedTime desc"
-        ).execute()
+        results = service.files().list(q=" and ".join(filters), pageSize=50, fields="files(id, name, mimeType, webViewLink, iconLink, thumbnailLink, modifiedTime)", orderBy="folder, modifiedTime desc").execute()
         files = results.get('files', [])
-        
         try: r.set(cache_key, json.dumps(files), ex=300)
         except: pass
-        
         return JSONResponse(content={"source": "google", "files": files})
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+    except Exception as e: return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @router.get("/storage")
 async def get_storage_info():
@@ -87,6 +66,7 @@ async def get_storage_info():
         })
     except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
+# 上傳與刪除功能保持不變，省略以節省篇幅 (請保留您原有的 upload_file 和 delete_file)
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...), folder_id: str = Form('root')):
     try:
