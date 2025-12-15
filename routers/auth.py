@@ -8,12 +8,12 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request as GoogleRequest
 
-# 允許 HTTP (Render 內部轉發可能是 HTTP)
+# 允許 HTTP (Render 內部轉發通常是 HTTP)
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# Redis 連線 (Token 存這裡！)
+# Redis 連線
 r = redis.Redis(
     host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
     port=11812,
@@ -35,8 +35,8 @@ SCOPES = [
     'openid'
 ]
 
-# ★★★ 關鍵：自動切換 Render 網址或本機網址 ★★★
-# Render 會自動提供 RENDER_EXTERNAL_URL 環境變數
+# ★★★ 關鍵：自動抓取 Render 的網址，如果沒有就用本機 ★★★
+# 請在 Render 後台設定環境變數 RENDER_EXTERNAL_URL = https://您的專案名.onrender.com
 APP_URL = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000")
 REDIRECT_URI = f"{APP_URL}/api/auth/callback"
 

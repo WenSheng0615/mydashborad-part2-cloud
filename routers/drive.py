@@ -39,7 +39,6 @@ def get_drive_service():
 
 @router.get("/files")
 async def get_drive_files(folder_id: str = 'root', query: str = None, file_type: str = None):
-    # 快取 Key (移除檔案時間，改用簡單版本，因為 Token 在 Redis)
     cache_key = f"drive:files:{folder_id}:{query}:{file_type}"
     
     try:

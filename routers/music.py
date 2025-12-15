@@ -21,9 +21,9 @@ r = redis.Redis(
     socket_timeout=5
 )
 
-# ★★★ 關鍵：自動尋找 FFmpeg (Render 是 Linux，沒有 .exe) ★★★
+# ★★★ 關鍵：自動尋找 FFmpeg (兼容 Windows 與 Linux/Render) ★★★
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
-print(f"🎵 FFmpeg path: {FFMPEG_BIN}")
+print(f"🎵 FFmpeg path found: {FFMPEG_BIN}")
 
 def get_youtube_service():
     # 改從 Redis 讀 Token
