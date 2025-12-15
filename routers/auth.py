@@ -36,10 +36,14 @@ SCOPES = [
     'openid'
 ]
 
-# ★★★ 關鍵：自動抓取 Render 網址 (解決 400 錯誤) ★★★
-# 如果在 Render 上，會自動用 https://....onrender.com
-# 如果在 本機，會用 http://127.0.0.1:8000
-APP_URL = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000")
+# ★★★ 關鍵修正：確保這裡抓得到 Render 的網址 ★★★
+# 如果 Render 環境變數沒設好，它會退回 localhost，導致 400 錯誤
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
+if RENDER_URL:
+    APP_URL = RENDER_URL
+else:
+    APP_URL = "http://127.0.0.1:8000"
+
 REDIRECT_URI = f"{APP_URL}/api/auth/callback"
 
 @router.get("/login")
@@ -48,6 +52,9 @@ async def login():
         return JSONResponse({"error": "找不到 credentials.json"}, 500)
     
     try:
+        # 印出這個網址到 Render Log，方便除錯
+        print(f"👉 [Login] 使用的 Redirect URI: {REDIRECT_URI}")
+        
         flow = Flow.from_client_secrets_file(
             CREDENTIALS_FILE, 
             scopes=SCOPES, 
@@ -59,7 +66,6 @@ async def login():
             include_granted_scopes='true',
             prompt='consent'
         )
-        print(f"👉 [Login] Redirect URI: {REDIRECT_URI}")
         return {"status": "redirect", "url": url}
     except Exception as e:
         return JSONResponse({"error": str(e)}, 500)
@@ -78,11 +84,11 @@ async def auth_callback(request: Request):
         flow.fetch_token(code=code)
         creds = flow.credentials
         
-        # ★★★ 存入 Redis，並更新版本號 (讓 Drive 知道要清快取) ★★★
+        # 存入 Redis
         r.set("auth:google_token", creds.to_json())
-        r.set("auth:version", int(time.time())) # 記錄登入時間
+        r.set("auth:version", int(time.time()))
         
-        print(f"✅ 登入成功！Token 已存入 Redis")
+        print(f"✅ 登入成功！")
         return RedirectResponse(url="/")
         
     except Exception as e:
