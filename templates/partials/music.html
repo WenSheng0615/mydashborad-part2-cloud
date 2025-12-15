@@ -1,0 +1,161 @@
+<div id="view-music" class="app-view">
+    <div class="app-header">
+        <h1 class="app-title"><i class="fa-solid fa-music"></i> Music Center</h1>
+        <div class="user-placeholder"></div>
+    </div>
+
+    <div class="music-layout">
+        <div class="now-playing">
+            <div id="player-art-container">
+                <img id="current-cover-img" src="https://via.placeholder.com/400x400?text=Music">
+                <div id="loading-spinner"
+                    style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; flex-direction:column; color:white;">
+                    <i class="fa-solid fa-circle-notch fa-spin"
+                        style="font-size:3rem; color:var(--accent); margin-bottom:10px;"></i>
+                    <span style="font-size:0.9rem;">解析音訊中...</span>
+                </div>
+            </div>
+
+            <audio id="audio-player" style="display:none;"></audio>
+
+            <div class="track-info-area">
+                <h2 id="current-track-title">請選擇歌曲</h2>
+                <p id="current-track-channel">YouTube Streaming</p>
+            </div>
+
+            <div class="control-group">
+                <input type="range" id="progress-bar" class="slider-range" value="0" min="0" max="100"
+                    oninput="seekTo(this.value)">
+                <div
+                    style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-sub); margin-top:5px;">
+                    <span id="current-time">0:00</span><span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:10px; width:80%; margin:5px 0;">
+                <i class="fa-solid fa-volume-high" style="color:var(--text-sub); font-size:0.9rem;"></i>
+                <input type="range" class="slider-range" min="0" max="1" step="0.1" value="1"
+                    oninput="setVolume(this.value)">
+            </div>
+
+            <div class="player-controls">
+                <button class="btn-tool" onclick="controlPlayer('rewind')" title="倒退 10s"><i
+                        class="fa-solid fa-rotate-left"></i></button>
+                <button class="btn-tool" onclick="controlPlayer('prev')" title="上一首"><i
+                        class="fa-solid fa-backward-step"></i></button>
+
+                <button class="btn-tool"
+                    style="width:64px; height:64px; font-size:1.8rem; background:var(--accent); color:white; border-radius:50%; box-shadow: 0 5px 15px var(--accent-shadow);"
+                    onclick="togglePlayState()" id="btn-play-pause">
+                    <i class="fa-solid fa-play" style="margin-left:5px;"></i>
+                </button>
+
+                <button class="btn-tool" onclick="controlPlayer('next')" title="下一首"><i
+                        class="fa-solid fa-forward-step"></i></button>
+                <button class="btn-tool" onclick="controlPlayer('forward')" title="快進 10s"><i
+                        class="fa-solid fa-rotate-right"></i></button>
+            </div>
+
+            <div style="display:flex; gap:15px; margin-top:20px;">
+                <button class="btn-tool btn-extra" id="btn-shuffle" onclick="toggleShuffle()" title="隨機播放"><i
+                        class="fa-solid fa-shuffle"></i></button>
+                <button class="btn-tool btn-extra" id="btn-loop" onclick="toggleLoop()" title="循環播放"><i
+                        class="fa-solid fa-repeat"></i></button>
+                <button class="btn-tool btn-extra" onclick="openAddToPlaylistModal()" title="加入歌單"><i
+                        class="fa-solid fa-plus"></i></button>
+            </div>
+        </div>
+
+        <div class="playlist-side">
+            <div class="tab-group">
+                <button class="tab-btn active" onclick="switchTab('search')">搜尋</button>
+                <button class="tab-btn" onclick="switchTab('playlists')">歌單</button>
+                <button class="tab-btn" onclick="switchTab('history')">紀錄</button>
+            </div>
+
+            <div id="tab-search" class="tab-content active">
+                <div class="yt-search-box">
+                    <input type="text" id="yt-search-input" placeholder="搜尋 YouTube..."
+                        onkeyup="if(event.key==='Enter') searchYouTube()">
+                    <button class="btn-tool" onclick="searchYouTube()"><i
+                            class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div id="yt-results" class="track-list"></div>
+            </div>
+
+            <div id="tab-playlists" class="tab-content">
+                <button class="btn-create-playlist" onclick="openCreatePlaylistModal()">
+                    <i class="fa-solid fa-plus"></i> 建立新歌單
+                </button>
+
+                <div id="playlists-list" class="track-list"></div>
+                <div id="playlist-detail" style="display:none; flex-direction:column; height:100%;">
+                    <div
+                        style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border);">
+                        <button class="btn-tool" style="width:30px; height:30px;" onclick="closePlaylist()"><i
+                                class="fa-solid fa-arrow-left"></i></button>
+                        <span id="playlist-title"
+                            style="font-weight:bold; font-size:1.1rem; flex:1; color:var(--text-main);"></span>
+                    </div>
+                    <div id="playlist-songs" class="track-list"></div>
+                </div>
+            </div>
+
+            <div id="tab-history" class="tab-content">
+                <div
+                    style="display:flex; justify-content:space-between; margin-bottom:10px; color:var(--text-sub); font-size:0.9rem;">
+                    <span>最近播放</span><button class="btn-tool" style="width:30px; height:30px;"
+                        onclick="loadHistory()"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+                <div id="history-list" class="track-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-playlist-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:350px;">
+            <h3 class="modal-title" style="margin-top:0;">建立新歌單</h3>
+            <input type="text" id="new-playlist-title" placeholder="請輸入歌單名稱..."
+                style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; margin-bottom:20px; box-sizing:border-box; outline:none; font-size:1rem;">
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-modal btn-cancel" onclick="closeCreatePlaylistModal()">取消</button>
+                <button class="btn-modal btn-confirm" onclick="submitCreatePlaylist()">建立</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-to-playlist-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:350px;">
+            <h3 class="modal-title" style="margin-top:0;">加入歌單</h3>
+            <p style="color:var(--text-sub); font-size:0.9rem; margin-bottom:10px; text-align:left;">請選擇目標歌單：</p>
+            <div id="modal-playlist-list" class="playlist-select-list"></div>
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn-modal btn-cancel" onclick="closeAddToPlaylistModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="remove-song-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:300px; text-align:center;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:3rem; color:#ff4d4f; margin-bottom:15px;"></i>
+            <h3 class="modal-title" style="color:#ff4d4f;">移除歌曲？</h3>
+            <p style="color:var(--text-sub); margin-bottom:20px;">確定要從歌單中移除此歌曲嗎？</p>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn-modal btn-cancel" onclick="closeRemoveSongModal()">取消</button>
+                <button class="btn-modal btn-confirm" id="btn-confirm-remove" style="background:#ff4d4f;">移除</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-playlist-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:300px; text-align:center;">
+            <i class="fa-solid fa-trash-can" style="font-size:3rem; color:#ff4d4f; margin-bottom:15px;"></i>
+            <h3 class="modal-title" style="color:#ff4d4f;">刪除歌單？</h3>
+            <p style="color:var(--text-sub); margin-bottom:20px;">此動作將同步刪除 YouTube 上的歌單。</p>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn-modal btn-cancel" onclick="closeDeletePlaylistModal()">取消</button>
+                <button class="btn-modal btn-confirm" id="btn-confirm-delete-pl" style="background:#ff4d4f;">刪除</button>
+            </div>
+        </div>
+    </div>
+</div>

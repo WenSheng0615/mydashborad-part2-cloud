@@ -1,0 +1,211 @@
+/* calendar.css - v25.0 Perfect Theme & Alignment */
+
+.calendar-layout {
+    display: flex;
+    height: 100%;
+    gap: 20px;
+    overflow: hidden;
+}
+
+/* 左側：月曆主體 */
+.calendar-main {
+    flex: 2;
+    background: var(--card-bg);
+    /* ★ 變數化 */
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#cal-month-title {
+    font-size: 1.5rem;
+    margin: 0;
+    color: var(--text-main);
+}
+
+.cal-btn-group {
+    display: flex;
+    gap: 10px;
+}
+
+.weekdays-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-sub);
+    font-weight: bold;
+}
+
+.days-grid-area {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 1fr;
+    flex-grow: 1;
+    margin-top: 10px;
+    gap: 5px;
+}
+
+.day-cell {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 5px;
+    cursor: pointer;
+    position: relative;
+    transition: 0.2s;
+
+    /* ★ 關鍵修復：內容垂直水平置中 ★ */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* 水平置中 */
+    justify-content: center;
+    /* 垂直置中 */
+    gap: 4px;
+    /* 數字和紅點的間距 */
+}
+
+.day-cell:hover {
+    background: var(--input-bg);
+}
+
+/* 今天樣式 */
+.day-cell.today {
+    background: var(--today-bg);
+    border-color: var(--accent);
+    font-weight: bold;
+}
+
+/* 選中樣式 */
+.day-cell.selected {
+    background: var(--bg-hover);
+    border-color: var(--text-main);
+    box-shadow: inset 0 0 0 1px var(--text-main);
+}
+
+.day-cell.empty {
+    border: none;
+    cursor: default;
+    background: transparent;
+}
+
+.day-number {
+    font-size: 1rem;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+/* ★ 紅點修復 ★ */
+.event-dots {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    /* 紅點置中 */
+    height: 6px;
+    align-items: center;
+}
+
+.event-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent);
+    border-radius: 50%;
+}
+
+/* 右側：側邊欄 */
+.calendar-sidebar {
+    flex: 1;
+    background: var(--card-bg);
+    /* ★ 變數化 */
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-width: 300px;
+}
+
+#selected-date-title {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.event-list-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.event-card {
+    background: var(--input-bg);
+    /* ★ 變數化 */
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 4px solid var(--accent);
+    cursor: pointer;
+    transition: 0.2s;
+    position: relative;
+    color: var(--text-main);
+}
+
+.event-card:hover {
+    transform: translateX(5px);
+    background: var(--bg-hover);
+}
+
+.event-time {
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: bold;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.event-title {
+    font-size: 1rem;
+    color: var(--text-main);
+    margin-bottom: 0;
+    font-weight: 500;
+}
+
+.event-actions {
+    display: flex;
+    gap: 10px;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+}
+
+.event-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-sub);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: 0.2s;
+}
+
+.event-action-btn:hover {
+    color: var(--text-main);
+}
+
+.event-action-btn.del:hover {
+    color: #ff4d4f;
+}

@@ -1,0 +1,69 @@
+<div id="view-tasks" class="app-view">
+    <div class="app-header">
+        <h1 class="app-title"><i class="fa-solid fa-check-double"></i> Tasks</h1>
+        <div class="user-placeholder"></div>
+    </div>
+
+    <div
+        style="display:flex; gap:10px; margin-bottom:20px; background:var(--card-bg); padding:15px; border-radius:16px; border:1px solid var(--border-color); flex-wrap: wrap;">
+        <input type="text" id="task-input" placeholder="輸入待辦事項..."
+            style="flex:2; min-width: 200px; background:var(--input-bg); border:1px solid var(--border-color); padding:10px; border-radius:8px; color:var(--text-main); outline:none;"
+            onkeyup="if(event.key==='Enter') addTask()">
+
+        <input type="date" id="task-date" class="task-date-input"
+            style="background:var(--input-bg); border:1px solid var(--border-color); padding:10px; border-radius:8px; color:var(--text-main); outline:none;">
+        <input type="time" id="task-time" class="task-time-input"
+            style="background:var(--input-bg); border:1px solid var(--border-color); padding:10px; border-radius:8px; color:var(--text-main); outline:none;">
+
+        <button class="btn-tool" style="width:auto; padding:0 20px; background:var(--accent); color:white;"
+            onclick="addTask()">
+            <i class="fa-solid fa-plus"></i> 新增
+        </button>
+    </div>
+
+    <div class="kanban-board">
+        <div class="kanban-column">
+            <div class="column-header status-todo">待辦 (To Do)</div>
+            <div id="col-todo" class="task-list-area" ondrop="drop(event, 'todo')" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <div class="kanban-column">
+            <div class="column-header status-doing">進行中 (Doing)</div>
+            <div id="col-doing" class="task-list-area" ondrop="drop(event, 'doing')" ondragover="allowDrop(event)">
+            </div>
+        </div>
+
+        <div class="kanban-column">
+            <div class="column-header status-done">完成 (Done)</div>
+            <div id="col-done" class="task-list-area" ondrop="drop(event, 'done')" ondragover="allowDrop(event)"></div>
+        </div>
+    </div>
+
+    <div id="edit-task-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width: 400px; text-align: left;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; color:var(--text-main);">編輯任務</h3>
+                <button class="btn-tool" onclick="closeEditTaskModal()" style="width:30px; height:30px;"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <input type="hidden" id="edit-task-id">
+                <input type="hidden" id="edit-task-stage">
+
+                <textarea id="edit-task-content" placeholder="任務內容..."
+                    style="background:var(--input-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; color:var(--text-main); outline:none; resize:none; height:100px; font-family:'Segoe UI'; font-size:1rem;"></textarea>
+
+                <div style="display:flex; gap:10px;">
+                    <input type="date" id="edit-task-date" class="modal-input" style="flex:1;">
+                    <input type="time" id="edit-task-time" class="modal-input" style="flex:1;">
+                </div>
+
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+                    <button class="btn-modal btn-cancel" onclick="closeEditTaskModal()">取消</button>
+                    <button class="btn-modal btn-confirm" onclick="submitEditTask()">更新</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

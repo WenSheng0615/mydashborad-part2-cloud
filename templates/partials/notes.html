@@ -1,0 +1,58 @@
+<div id="view-notes" class="app-view">
+    <div class="app-header">
+        <h1 class="app-title"><i class="fa-solid fa-note-sticky"></i> Notes</h1>
+        <div class="user-placeholder"></div>
+    </div>
+
+    <div class="notes-container" style="height:100%; display:flex; flex-direction:column;">
+        <div class="notes-toolbar"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:var(--card-bg); padding:10px 20px; border-radius:16px; border:1px solid var(--border-color); flex-shrink:0;">
+            <div style="flex:1;"></div>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn-tool active" id="btn-note-grid" onclick="switchNoteLayout('grid')" title="格狀檢視">
+                    <i class="fa-solid fa-border-all"></i>
+                </button>
+                <button class="btn-tool" id="btn-note-list" onclick="switchNoteLayout('list')" title="條列檢視">
+                    <i class="fa-solid fa-list"></i>
+                </button>
+                <div style="width:1px; height:24px; background:var(--border-color); margin:0 5px;"></div>
+                <button class="btn-tool" onclick="openNoteModal()" title="新增筆記"
+                    style="background:var(--accent); color:white;">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="notes-view-container" class="notes-grid" style="flex:1; overflow-y:auto; padding-bottom:20px;"></div>
+    </div>
+
+    <div id="note-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width: 400px; text-align: left;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 class="modal-title" style="margin:0;">新增筆記</h3>
+                <button class="btn-tool" onclick="closeNoteModal()" style="width:30px; height:30px;"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <div style="display:flex; gap:10px;">
+                    <select id="modal-note-color" class="custom-select" style="flex:1;">
+                        <option value="yellow" style="color:#e6c229;">🟡 鵝黃色</option>
+                        <option value="blue" style="color:#1a8fe3;">🔵 寧靜藍</option>
+                        <option value="green" style="color:#6a994e;">🟢 鼠尾草綠</option>
+                        <option value="pink" style="color:#d1495b;">🔴 煙燻粉</option>
+                    </select>
+                </div>
+                <input type="text" id="modal-note-title" placeholder="標題"
+                    style="background:var(--input-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; color:var(--text-main); outline:none; font-weight:bold;">
+                <textarea id="modal-note-desc" placeholder="輸入內容..."
+                    style="background:var(--input-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; color:var(--text-main); outline:none; resize:none; height:120px; font-family:'Segoe UI';"></textarea>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn-preview-action btn-secondary" onclick="closeNoteModal()">取消</button>
+                    <button class="btn-preview-action btn-primary" onclick="submitNote()">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

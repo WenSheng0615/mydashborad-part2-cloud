@@ -1,0 +1,340 @@
+/* music.css - v27.0 Final Clean */
+
+.music-layout {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* 左側：播放器 */
+.now-playing {
+    flex: 1;
+    background: var(--bg-card);
+    border-radius: 24px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid var(--border);
+    max-width: 450px;
+    position: relative;
+}
+
+#player-art-container {
+    width: 100%;
+    aspect-ratio: 1/1;
+    max-height: 280px;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    background: #000;
+    position: relative;
+}
+
+#current-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.9;
+}
+
+.track-info-area {
+    width: 100%;
+    cursor: default;
+    margin-bottom: 10px;
+}
+
+.track-info-area h2 {
+    color: var(--text-main);
+    margin: 5px 0;
+    font-size: 1.4rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.track-info-area p {
+    color: var(--text-sub);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* ★★★ 滑桿修復 (消除警告) ★★★ */
+.control-group {
+    width: 100%;
+    margin: 15px 0;
+}
+
+input[type=range].slider-range {
+    -webkit-appearance: none;
+    /* Chrome/Safari/Edge */
+    appearance: none;
+    /* ★ 標準屬性 (消除黃色底線) ★ */
+    width: 100%;
+    height: 6px;
+    background: var(--range-bg);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    display: block;
+}
+
+input[type=range].slider-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    /* ★ 標準屬性 ★ */
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg-card);
+    transition: transform 0.1s;
+    margin-top: -4px;
+}
+
+input[type=range].slider-range::-webkit-slider-thumb:hover {
+    transform: scale(1.3);
+}
+
+/* 控制按鈕 */
+.player-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+/* 右側：資料庫 */
+.playlist-side {
+    flex: 1.5;
+    background: var(--bg-card);
+    border-radius: 24px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Tabs */
+.tab-group {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-sub);
+    padding: 12px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: 0.2s;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.tab-btn:hover {
+    color: var(--text-main);
+    background: var(--bg-input);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tab-content.active {
+    display: flex;
+    animation: fadeIn 0.3s;
+}
+
+/* 歌曲列表 */
+.track-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 5px;
+    background-color: var(--bg-card) !important;
+}
+
+.track-item {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: 0.2s;
+    background-color: var(--bg-card) !important;
+    color: var(--text-main) !important;
+}
+
+.track-item:hover {
+    background-color: var(--bg-input) !important;
+}
+
+.track-item.active {
+    background-color: var(--accent-dim) !important;
+    border-left: 4px solid var(--accent);
+}
+
+.track-img {
+    width: 50px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.track-info {
+    text-align: left;
+    flex: 1;
+    overflow: hidden;
+}
+
+.track-title {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-main);
+}
+
+.track-channel {
+    font-size: 0.8rem;
+    color: var(--text-sub);
+}
+
+/* 搜尋框 */
+.yt-search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.yt-search-box input {
+    flex: 1;
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border);
+    padding: 10px 15px;
+    border-radius: 8px;
+    color: var(--text-main) !important;
+    outline: none;
+    transition: 0.3s;
+}
+
+.yt-search-box input:focus {
+    border-color: var(--accent);
+    background-color: var(--bg-card) !important;
+}
+
+/* 按鈕 */
+.btn-tool {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-input);
+    color: var(--text-sub);
+    transition: 0.2s;
+    font-size: 1.1rem;
+}
+
+.btn-tool:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-extra.active {
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+}
+
+/* 建立歌單按鈕 */
+.btn-create-playlist {
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-create-playlist:hover {
+    background-color: var(--accent) !important;
+    color: white !important;
+    border-color: var(--accent);
+    border-style: solid;
+}
+
+/* Modal 列表 */
+.playlist-select-list {
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+    padding-right: 5px;
+}
+
+.playlist-select-item {
+    padding: 12px 15px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 15px;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    transition: 0.2s;
+}
+
+.playlist-select-item:hover {
+    border-color: var(--accent);
+    transform: translateX(5px);
+}
+
+.playlist-select-item img {
+    width: 45px;
+    height: 35px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.playlist-select-item span {
+    font-weight: 500;
+    font-size: 1rem;
+}

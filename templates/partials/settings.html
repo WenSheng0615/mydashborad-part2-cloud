@@ -1,0 +1,85 @@
+<div id="view-settings" class="app-view">
+    <div class="app-header">
+        <h1 class="app-title"><i class="fa-solid fa-gear"></i> Settings</h1>
+        <div class="user-placeholder"></div>
+    </div>
+
+    <div class="settings-grid">
+
+        <div class="setting-card profile-card">
+            <div class="profile-header">
+                <img id="setting-user-avatar" src="https://via.placeholder.com/150" class="profile-avatar">
+                <div class="profile-info">
+                    <h2 id="setting-user-name">Guest User</h2>
+                    <p id="setting-user-email">未登入</p>
+                    <div class="profile-badge">FocusFlow Pro</div>
+                </div>
+            </div>
+            <div class="profile-actions">
+                <button class="btn-setting-action logout" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> 登出帳號
+                </button>
+            </div>
+        </div>
+
+        <div class="setting-card">
+            <h3 class="card-title"><i class="fa-solid fa-sliders"></i> 系統偏好</h3>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-name">深色模式 (Dark Mode)</div>
+                    <div class="setting-desc">切換介面風格 (紅黑 / 藍白)</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="theme-switch" onchange="toggleTheme()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-name">系統通知</div>
+                    <div class="setting-desc">啟用桌面推播通知</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="notify-switch" onchange="toggleNotifications()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-card">
+            <h3 class="card-title"><i class="fa-solid fa-hard-drive"></i> 雲端空間 (Google Drive)</h3>
+
+            <div class="storage-info">
+                <div class="storage-text">
+                    <span id="storage-usage-text">讀取中...</span>
+                    <span id="storage-total-text">-- / --</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="storage-bar" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="storage-detail">
+                    <span><i class="fa-solid fa-circle" style="color:var(--accent);"></i> 已使用</span>
+                    <span><i class="fa-solid fa-circle" style="color:#73d13d;"></i> 剩餘</span>
+                </div>
+            </div>
+
+            <div class="setting-row" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <div class="setting-info">
+                    <div class="setting-name">清除本機快取</div>
+                    <div class="setting-desc">釋放瀏覽器暫存空間</div>
+                </div>
+                <button class="btn-tool" onclick="clearSystemCache()"><i class="fa-solid fa-broom"></i></button>
+            </div>
+        </div>
+
+        <div class="setting-card about-card">
+            <h3>FocusFlow OS</h3>
+            <p style="font-weight:bold; font-size:1.1rem; color:var(--accent);">v4.0.0 (Ultimate)</p>
+            <p style="font-size:0.8rem; color:var(--text-sub); margin-top:10px;">Designed for Personal Productivity.</p>
+            <p style="font-size:0.7rem; color:var(--text-sub);">Build 2025.01.27</p>
+        </div>
+
+    </div>
+</div>

@@ -1,0 +1,213 @@
+/* money.css - vFinal Polished */
+
+.money-hero-section {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.hero-card {
+    flex: 1;
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.hero-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+}
+
+.hero-label {
+    font-size: 0.9rem;
+    color: var(--text-sub);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.hero-value {
+    font-size: 2.2rem;
+    font-weight: bold;
+}
+
+.hero-card.income .hero-value {
+    color: #73d13d;
+}
+
+.hero-card.expense .hero-value {
+    color: #ff7875;
+}
+
+.hero-card.balance .hero-value {
+    color: #40a9ff;
+}
+
+.section-block {
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--accent);
+    padding-left: 10px;
+    color: var(--text-main);
+}
+
+/* Table */
+.notion-table {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 0.9rem;
+}
+
+.nt-row {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    transition: 0.1s;
+    align-items: center;
+    height: 45px;
+    color: var(--text-main);
+}
+
+.nt-row:last-child {
+    border-bottom: none;
+}
+
+.nt-row:hover {
+    background: var(--input-bg);
+}
+
+.nt-header {
+    background: var(--card-bg);
+    color: var(--text-sub);
+    font-weight: bold;
+    font-size: 0.85rem;
+    height: 40px;
+}
+
+.input-row {
+    background: var(--bg-hover);
+}
+
+.nt-cell {
+    padding: 0 12px;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    height: 100%;
+}
+
+.nt-cell:last-child {
+    border-right: none;
+}
+
+/* Components */
+.table-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    outline: none;
+    height: 100%;
+    font-size: 0.9rem;
+}
+
+.modal-input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 6px;
+    color: var(--text-main);
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* ★★★ 修復：移除 Number Input 的上下箭頭 (無警告版) ★★★ */
+.num-input::-webkit-outer-spin-button,
+.num-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.num-input {
+    appearance: none;
+    /* 標準寫法 (消除警告) */
+    -moz-appearance: textfield;
+    /* Firefox 專用 */
+}
+
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-badge.normal {
+    color: #73d13d;
+    background: rgba(115, 209, 61, 0.1);
+}
+
+.status-badge.warning {
+    color: #faad14;
+    background: rgba(250, 173, 20, 0.1);
+}
+
+.status-badge.over {
+    color: #ff4d4f;
+    background: rgba(255, 77, 79, 0.1);
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.tag {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.tag.income {
+    color: #73d13d;
+    border: 1px solid #73d13d;
+}
+
+.tag.expense {
+    color: #ff7875;
+    border: 1px solid #ff7875;
+}
+
+.tag-gray {
+    background: #333;
+    color: #aaa;
+}
+
+.action-icon {
+    cursor: pointer;
+    color: var(--text-sub);
+    transition: 0.2s;
+}
+
+.action-icon:hover {
+    color: var(--accent);
+    transform: scale(1.1);
+}

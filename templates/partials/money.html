@@ -1,0 +1,141 @@
+<div id="view-money" class="app-view">
+    <div class="app-header">
+        <h1 class="app-title"><i class="fa-solid fa-wallet"></i> Accounting</h1>
+        <div class="user-placeholder"></div>
+    </div>
+
+    <div class="money-container" style="overflow-y: auto; padding-right: 5px;">
+
+        <div class="money-hero-section">
+            <div class="hero-card income">
+                <div class="hero-label">總收入</div>
+                <div class="hero-value" id="disp-income">$ 0</div>
+            </div>
+            <div class="hero-card expense">
+                <div class="hero-label">總支出</div>
+                <div class="hero-value" id="disp-expense">$ 0</div>
+            </div>
+            <div class="hero-card balance">
+                <div class="hero-label">本月結餘</div>
+                <div class="hero-value" id="disp-balance">$ 0</div>
+            </div>
+        </div>
+
+        <div class="section-block">
+            <div class="section-title">支出類別</div>
+            <div class="notion-table">
+                <div class="nt-row nt-header">
+                    <div class="nt-cell" style="flex:1">名稱</div>
+                    <div class="nt-cell" style="width:100px; justify-content:flex-end;">小計</div>
+                    <div class="nt-cell" style="width:100px; justify-content:flex-end;">預算</div>
+                    <div class="nt-cell" style="width:100px; justify-content:center;">狀態</div>
+                    <div class="nt-cell" style="width:70px"></div>
+                </div>
+                <div id="category-expense-list"></div>
+                <div class="nt-row input-row">
+                    <div class="nt-cell" style="flex:1; padding:0 5px;"><input type="text" id="new-exp-name"
+                            placeholder="新增支出類別..." class="table-input"></div>
+                    <div class="nt-cell" style="width:100px; padding:0 5px;"><input type="number" id="new-exp-budget"
+                            placeholder="預算" class="table-input num-input"></div>
+                    <div class="nt-cell" style="width:100px;"></div>
+                    <div class="nt-cell" style="width:100px;"></div>
+                    <div class="nt-cell" style="width:70px; justify-content:center;"><i
+                            class="fa-solid fa-plus action-icon" onclick="addCategory('expense')"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-block">
+            <div class="section-title">收入類別</div>
+            <div class="notion-table">
+                <div class="nt-row nt-header">
+                    <div class="nt-cell" style="flex:1">名稱</div>
+                    <div class="nt-cell" style="width:120px; justify-content:flex-end;">小計</div>
+                    <div class="nt-cell" style="width:70px"></div>
+                </div>
+                <div id="category-income-list"></div>
+                <div class="nt-row input-row">
+                    <div class="nt-cell" style="flex:1; padding:0 5px;"><input type="text" id="new-inc-name"
+                            placeholder="新增收入類別..." class="table-input"></div>
+                    <div class="nt-cell" style="width:120px;"></div>
+                    <div class="nt-cell" style="width:70px; justify-content:center;"><i
+                            class="fa-solid fa-plus action-icon" onclick="addCategory('income')"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-block">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div class="section-title" style="margin-bottom:0;">交易紀錄</div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-tool" onclick="exportExcel()" title="匯出 Excel"><i
+                            class="fa-solid fa-file-csv"></i></button>
+                    <button class="btn-tool" onclick="resetMoney()" title="清空"
+                        style="color:#ff4d4f; border-color:#ff4d4f;"><i class="fa-solid fa-trash-can"></i></button>
+                    <div style="width:1px; height:24px; background:var(--border-color); margin:0 5px;"></div>
+                    <button class="btn-tool" style="background:var(--accent); color:white;"
+                        onclick="openMoneyModal()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+
+            <div class="notion-table">
+                <div class="nt-row nt-header">
+                    <div class="nt-cell" style="width:120px">日期</div>
+                    <div class="nt-cell" style="width:80px; justify-content:center;">類型</div>
+                    <div class="nt-cell" style="width:100px">類別</div>
+                    <div class="nt-cell" style="flex:1.5">項目</div>
+                    <div class="nt-cell" style="width:120px; justify-content:flex-start; padding-left:20px;">金額</div>
+                    <div class="nt-cell" style="flex:1">備註</div>
+                    <div class="nt-cell" style="width:50px"></div>
+                </div>
+                <div id="transaction-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="money-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:400px; text-align:left;">
+            <h3 style="margin-top:0; margin-bottom:20px; color:var(--text-main);">記一筆</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <select id="m-type" class="modal-input custom-select" onchange="updateCategoryOptions()">
+                    <option value="expense">💸 支出</option>
+                    <option value="income">💰 收入</option>
+                </select>
+                <input type="date" id="m-date" class="modal-input">
+                <select id="m-category" class="modal-input custom-select"></select>
+                <input type="number" id="m-amount" placeholder="金額" class="modal-input num-input">
+                <input type="text" id="m-item" placeholder="項目" class="modal-input" style="grid-column: span 2;">
+                <input type="text" id="m-note" placeholder="備註..." class="modal-input" style="grid-column: span 2;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                <button class="btn-modal btn-cancel" onclick="closeMoneyModal()">取消</button>
+                <button class="btn-modal btn-confirm" onclick="submitTransaction()">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-category-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:350px; text-align:left;">
+            <h3 style="margin-top:0; margin-bottom:20px; color:var(--text-main);">編輯類別</h3>
+            <input type="hidden" id="edit-cat-old-name">
+            <input type="hidden" id="edit-cat-type">
+
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <div>
+                    <label style="color:var(--text-sub); font-size:0.9rem;">名稱</label>
+                    <input type="text" id="edit-cat-name" class="modal-input">
+                </div>
+
+                <div id="edit-cat-budget-group">
+                    <label style="color:var(--text-sub); font-size:0.9rem;">預算</label>
+                    <input type="number" id="edit-cat-budget" class="modal-input">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                <button class="btn-modal btn-cancel" onclick="closeEditCategoryModal()">取消</button>
+                <button class="btn-modal btn-confirm" onclick="submitEditCategory()">更新</button>
+            </div>
+        </div>
+    </div>
+</div>

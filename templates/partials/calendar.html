@@ -1,0 +1,111 @@
+<div id="view-calendar" class="app-view">
+    <div class="app-header">
+        <h1 class="app-title"><i class="fa-solid fa-calendar-days"></i> Calendar</h1>
+        <div class="user-placeholder"></div>
+    </div>
+
+    <div class="calendar-layout">
+        <div class="calendar-main">
+            <div class="calendar-header">
+                <h2 id="cal-month-title" style="margin:0;">Loading...</h2>
+                <div class="cal-btn-group">
+                    <button class="btn-tool" onclick="initCalendar()" title="刷新"><i
+                            class="fa-solid fa-rotate-right"></i></button>
+                    <div style="width:1px; height:24px; background:var(--border-color); margin:0 5px;"></div>
+                    <button class="btn-tool" onclick="changeMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="btn-tool" onclick="goToToday()" style="width:auto; padding:0 15px;">今天</button>
+                    <button class="btn-tool" onclick="changeMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div class="weekdays-row">
+                <div>SUN</div>
+                <div>MON</div>
+                <div>TUE</div>
+                <div>WED</div>
+                <div>THU</div>
+                <div>FRI</div>
+                <div>SAT</div>
+            </div>
+
+            <div id="calendar-grid" class="days-grid-area"></div>
+        </div>
+
+        <div class="calendar-sidebar">
+            <div
+                style="border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="selected-date-title" style="margin:0;">今日行程</h3>
+                <button class="btn-tool" style="width:30px; height:30px; background:var(--accent); color:white;"
+                    onclick="openEventModal('add')" title="新增行程">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+
+            <div id="event-list" class="event-list-container"></div>
+        </div>
+    </div>
+
+    <div id="event-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" style="width:400px; text-align:left;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                <h3 id="event-modal-title" style="margin:0; color:var(--text-main);">新增行程</h3>
+                <button class="btn-tool" style="width:30px; height:30px;" onclick="closeEventModal()"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <input type="text" id="evt-summary" placeholder="行程標題" class="modal-input"
+                    style="font-weight:bold; font-size:1.1rem;">
+
+                <div
+                    style="background:var(--input-bg); padding:10px; border-radius:8px; border:1px solid var(--border-color);">
+                    <div style="display:flex; align-items:center; margin-bottom:10px;">
+                        <input type="checkbox" id="evt-all-day" onchange="toggleTimeInputs()">
+                        <label for="evt-all-day"
+                            style="margin-left:8px; color:var(--text-sub); cursor:pointer;">全天行程</label>
+                    </div>
+
+                    <div
+                        style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:10px; align-items:center; margin-bottom:5px;">
+                        <span style="color:var(--text-sub); font-size:0.9rem;">開始</span>
+                        <input type="date" id="evt-start-date" class="modal-input" style="padding:5px;">
+                        <input type="time" id="evt-start-time" class="modal-input" style="padding:5px;"
+                            list="time-slots">
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:10px; align-items:center;">
+                        <span style="color:var(--text-sub); font-size:0.9rem;">結束</span>
+                        <input type="date" id="evt-end-date" class="modal-input" style="padding:5px;">
+                        <input type="time" id="evt-end-time" class="modal-input" style="padding:5px;" list="time-slots">
+                    </div>
+                </div>
+
+                <textarea id="evt-desc" placeholder="備註 / 描述..." class="modal-input"
+                    style="height:80px; resize:none; font-family:'Segoe UI';"></textarea>
+                <input type="hidden" id="evt-id">
+
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+                    <button class="btn-modal btn-cancel" onclick="closeEventModal()">取消</button>
+                    <button class="btn-modal btn-confirm" onclick="submitEvent()">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <datalist id="time-slots">
+        <option value="09:00"></option>
+        <option value="09:30"></option>
+        <option value="10:00"></option>
+        <option value="10:30"></option>
+        <option value="11:00"></option>
+        <option value="11:30"></option>
+        <option value="12:00"></option>
+        <option value="13:00"></option>
+        <option value="14:00"></option>
+        <option value="15:00"></option>
+        <option value="16:00"></option>
+        <option value="17:00"></option>
+        <option value="18:00"></option>
+        <option value="19:00"></option>
+        <option value="20:00"></option>
+    </datalist>
+</div>
