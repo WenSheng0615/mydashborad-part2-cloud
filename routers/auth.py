@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 import redis
@@ -8,7 +9,7 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request as GoogleRequest
 
-# 允許 HTTP (Render 內部轉發通常是 HTTP)
+# 允許 HTTP (Render 內部轉發)
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -35,8 +36,9 @@ SCOPES = [
     'openid'
 ]
 
-# ★★★ 關鍵：自動抓取 Render 的網址，如果沒有就用本機 ★★★
-# 請在 Render 後台設定環境變數 RENDER_EXTERNAL_URL = https://您的專案名.onrender.com
+# ★★★ 關鍵：自動抓取 Render 網址 (解決 400 錯誤) ★★★
+# 如果在 Render 上，會自動用 https://....onrender.com
+# 如果在 本機，會用 http://127.0.0.1:8000
 APP_URL = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000")
 REDIRECT_URI = f"{APP_URL}/api/auth/callback"
 
@@ -76,10 +78,11 @@ async def auth_callback(request: Request):
         flow.fetch_token(code=code)
         creds = flow.credentials
         
-        # ★★★ 改存 Redis：Render 重啟也不會登出 ★★★
+        # ★★★ 存入 Redis，並更新版本號 (讓 Drive 知道要清快取) ★★★
         r.set("auth:google_token", creds.to_json())
+        r.set("auth:version", int(time.time())) # 記錄登入時間
+        
         print(f"✅ 登入成功！Token 已存入 Redis")
-
         return RedirectResponse(url="/")
         
     except Exception as e:
@@ -88,7 +91,6 @@ async def auth_callback(request: Request):
 
 @router.get("/user")
 async def get_user_info(request: Request):
-    # 從 Redis 讀取 Token
     token_json = r.get("auth:google_token")
     if not token_json: return JSONResponse({"logged_in": False})
     
@@ -96,7 +98,6 @@ async def get_user_info(request: Request):
         info = json.loads(token_json)
         creds = Credentials.from_authorized_user_info(info, SCOPES)
         
-        # 自動刷新並存回 Redis
         if creds.expired and creds.refresh_token:
             creds.refresh(GoogleRequest())
             r.set("auth:google_token", creds.to_json())
@@ -117,6 +118,6 @@ async def get_user_info(request: Request):
 
 @router.get("/logout")
 async def logout(request: Request):
-    # 刪除 Redis 裡的 Token
     r.delete("auth:google_token")
+    r.delete("auth:version")
     return {"status": "logged_out"}

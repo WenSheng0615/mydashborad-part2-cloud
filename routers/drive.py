@@ -21,25 +21,26 @@ r = redis.Redis(
 )
 
 def get_drive_service():
-    # 改從 Redis 讀 Token
     token_json = r.get("auth:google_token")
     if not token_json: return None
     try:
         info = json.loads(token_json)
         creds = Credentials.from_authorized_user_info(info)
-        
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
                 r.set("auth:google_token", creds.to_json())
-            except:
-                return None 
+            except: return None
         return build('drive', 'v3', credentials=creds)
     except: return None
 
 @router.get("/files")
 async def get_drive_files(folder_id: str = 'root', query: str = None, file_type: str = None):
-    cache_key = f"drive:files:{folder_id}:{query}:{file_type}"
+    # ★★★ 關鍵：讀取登入版本號，強制刷新快取 ★★★
+    token_version = r.get("auth:version") or "0"
+    
+    # Key 包含版本號，換帳號時 Key 會變，舊資料自動失效
+    cache_key = f"drive:files:v{token_version}:{folder_id}:{query}:{file_type}"
     
     try:
         if r.exists(cache_key):
@@ -48,8 +49,7 @@ async def get_drive_files(folder_id: str = 'root', query: str = None, file_type:
 
     try:
         service = get_drive_service()
-        if not service: 
-            return JSONResponse({"error": "Login Required"}, 401)
+        if not service: return JSONResponse({"error": "Login Required"}, 401)
         
         filters = ["trashed = false"]
         if query: filters.append(f"name contains '{query}'")
@@ -78,24 +78,20 @@ async def get_storage_info():
     try:
         service = get_drive_service()
         if not service: return JSONResponse({"error": "Login Required"}, 401)
-        
         about = service.about().get(fields="storageQuota").execute()
         quota = about.get('storageQuota', {})
-        
         return JSONResponse({
             "total": int(quota.get('limit', 0)),
             "used": int(quota.get('usage', 0)),
             "trash": int(quota.get('usageInDriveTrash', 0))
         })
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, 500)
+    except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...), folder_id: str = Form('root')):
     try:
         service = get_drive_service()
         if not service: return JSONResponse({"error": "Login Required"}, 401)
-        
         metadata = {'name': file.filename, 'parents': [folder_id]}
         media = MediaIoBaseUpload(file.file, mimetype=file.content_type, resumable=True)
         service.files().create(body=metadata, media_body=media).execute()
@@ -107,7 +103,6 @@ async def delete_file(file_id: str = Form(...), folder_id: str = Form('root')):
     try:
         service = get_drive_service()
         if not service: return JSONResponse({"error": "Login Required"}, 401)
-        
         service.files().delete(fileId=file_id).execute()
         return {"status": "success"}
     except Exception as e: return JSONResponse({"error": str(e)}, 500)

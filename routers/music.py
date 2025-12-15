@@ -11,22 +11,16 @@ import shutil
 
 router = APIRouter(prefix="/api/music", tags=["music"])
 
-# Redis 連線
 r = redis.Redis(
     host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
-    port=11812,
-    decode_responses=True,
-    username="default",
-    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT",
-    socket_timeout=5
+    port=11812, decode_responses=True, username="default",
+    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT", socket_timeout=5
 )
 
-# ★★★ 關鍵：自動尋找 FFmpeg (兼容 Windows 與 Linux/Render) ★★★
+# ★★★ 自動尋找 FFmpeg (兼容 Linux) ★★★
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
-print(f"🎵 FFmpeg path found: {FFMPEG_BIN}")
 
 def get_youtube_service():
-    # 改從 Redis 讀 Token
     token_json = r.get("auth:google_token")
     if not token_json: return None
     try:
@@ -46,54 +40,41 @@ async def get_audio_stream(video_id: str):
             'noplaylist': True,
             'quiet': True,
             'skip_download': True,
-            # ★★★ 移除 ffmpeg_location，讓它自動使用系統路徑 ★★★
+            # ★★★ 移除 location 指定，讓它自己找 ★★★
         }
-        
         url = f"https://www.youtube.com/watch?v={video_id}"
-        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             return JSONResponse({
-                "url": info['url'], 
-                "title": info['title'], 
-                "thumbnail": info.get('thumbnail'),
-                "duration": info.get('duration')
+                "url": info['url'], "title": info['title'], 
+                "thumbnail": info.get('thumbnail'), "duration": info.get('duration')
             })
-    except Exception as e:
-        print(f"❌ 解析失敗: {e}")
-        return JSONResponse({"error": str(e)}, 500)
+    except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
 @router.get("/search")
 async def search_youtube(query: str):
     cache_key = f"yt:search:{query}"
     try:
-        if r.exists(cache_key):
-            return JSONResponse({"items": json.loads(r.get(cache_key))})
+        if r.exists(cache_key): return JSONResponse({"items": json.loads(r.get(cache_key))})
     except: pass
 
     try:
         service = get_youtube_service()
         if not service: return JSONResponse({"error": "未登入"}, 401)
-        
         req = service.search().list(part="snippet", maxResults=20, q=query, type="video")
         res = req.execute()
-        
         items = []
         for i in res.get('items', []):
             try:
                 thumbs = i['snippet'].get('thumbnails', {})
                 thumb_url = thumbs.get('medium', {}).get('url') or thumbs.get('default', {}).get('url') or ''
                 items.append({
-                    'id': i['id']['videoId'],
-                    'title': i['snippet']['title'],
-                    'thumbnail': thumb_url,
-                    'channel': i['snippet']['channelTitle']
+                    'id': i['id']['videoId'], 'title': i['snippet']['title'],
+                    'thumbnail': thumb_url, 'channel': i['snippet']['channelTitle']
                 })
             except: continue
-        
         try: r.set(cache_key, json.dumps(items), ex=86400)
         except: pass
-
         return JSONResponse({"items": items})
     except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
@@ -110,16 +91,12 @@ async def get_my_playlists():
                 thumbs = i['snippet'].get('thumbnails', {})
                 thumb_url = thumbs.get('medium', {}).get('url') or thumbs.get('default', {}).get('url') or ''
                 playlists.append({
-                    'id': i['id'], 
-                    'title': i['snippet']['title'], 
-                    'thumbnail': thumb_url, 
-                    'count': i['contentDetails']['itemCount']
+                    'id': i['id'], 'title': i['snippet']['title'], 
+                    'thumbnail': thumb_url, 'count': i['contentDetails']['itemCount']
                 })
             except: continue
         return JSONResponse({"playlists": playlists})
-    except Exception as e:
-        print(f"讀取歌單失敗: {e}")
-        return JSONResponse({"playlists": []})
+    except: return JSONResponse({"playlists": []})
 
 @router.get("/playlist/items")
 async def get_playlist_items(playlist_id: str):
@@ -134,10 +111,8 @@ async def get_playlist_items(playlist_id: str):
                     thumbs = i['snippet'].get('thumbnails', {})
                     thumb_url = thumbs.get('medium', {}).get('url') or thumbs.get('default', {}).get('url') or ''
                     items.append({
-                        'id': i['snippet']['resourceId']['videoId'], 
-                        'itemId': i['id'], 
-                        'title': i['snippet']['title'], 
-                        'thumbnail': thumb_url, 
+                        'id': i['snippet']['resourceId']['videoId'], 'itemId': i['id'], 
+                        'title': i['snippet']['title'], 'thumbnail': thumb_url, 
                         'channel': i['snippet']['videoOwnerChannelTitle']
                     })
             except: continue
