@@ -10,7 +10,7 @@ from googleapiclient.http import MediaIoBaseUpload
 
 router = APIRouter(prefix="/api/drive", tags=["drive"])
 
-# Redis 連線
+# Redis
 r = redis.Redis(
     host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
     port=11812,
@@ -20,41 +20,37 @@ r = redis.Redis(
     socket_timeout=5
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOKEN_FILE = os.path.join(BASE_DIR, 'token.json')
-
 def get_drive_service():
-    """取得 Drive 服務 (若 Token 過期會自動刷新)"""
-    if not os.path.exists(TOKEN_FILE): return None
+    # 改從 Redis 讀 Token
+    token_json = r.get("auth:google_token")
+    if not token_json: return None
     try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+        info = json.loads(token_json)
+        creds = Credentials.from_authorized_user_info(info)
+        
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
-                with open(TOKEN_FILE, 'w') as token:
-                    token.write(creds.to_json())
+                r.set("auth:google_token", creds.to_json())
             except:
-                return None
+                return None 
         return build('drive', 'v3', credentials=creds)
     except: return None
 
 @router.get("/files")
 async def get_drive_files(folder_id: str = 'root', query: str = None, file_type: str = None):
-    # 1. 檢查 Redis 快取 (加入 Token 修改時間作為版本控制)
-    token_version = 0
-    if os.path.exists(TOKEN_FILE):
-        token_version = os.path.getmtime(TOKEN_FILE)
-
-    cache_key = f"drive:files:{token_version}:{folder_id}:{query}:{file_type}"
+    # 快取 Key (移除檔案時間，改用簡單版本，因為 Token 在 Redis)
+    cache_key = f"drive:files:{folder_id}:{query}:{file_type}"
+    
     try:
         if r.exists(cache_key):
             return JSONResponse(content={"source": "redis", "files": json.loads(r.get(cache_key))})
     except: pass
 
-    # 2. 呼叫 Google API
     try:
         service = get_drive_service()
-        if not service: return JSONResponse({"error": "Login Required"}, 401)
+        if not service: 
+            return JSONResponse({"error": "Login Required"}, 401)
         
         filters = ["trashed = false"]
         if query: filters.append(f"name contains '{query}'")
@@ -71,7 +67,6 @@ async def get_drive_files(folder_id: str = 'root', query: str = None, file_type:
         ).execute()
         files = results.get('files', [])
         
-        # 寫入快取 (5分鐘)
         try: r.set(cache_key, json.dumps(files), ex=300)
         except: pass
         
@@ -79,7 +74,6 @@ async def get_drive_files(folder_id: str = 'root', query: str = None, file_type:
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-# ★★★ 新增：取得儲存空間資訊 ★★★
 @router.get("/storage")
 async def get_storage_info():
     try:

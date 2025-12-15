@@ -1,23 +1,35 @@
 import os
+import json
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
+import redis
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOKEN_FILE = os.path.join(BASE_DIR, 'token.json')
+# Redis
+r = redis.Redis(
+    host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
+    port=11812,
+    decode_responses=True,
+    username="default",
+    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT",
+    socket_timeout=5
+)
 
 def get_calendar_service():
-    if not os.path.exists(TOKEN_FILE): return None
+    # 改從 Redis 讀 Token
+    token_json = r.get("auth:google_token")
+    if not token_json: return None
     try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+        info = json.loads(token_json)
+        creds = Credentials.from_authorized_user_info(info)
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            with open(TOKEN_FILE, 'w') as token: token.write(creds.to_json())
+            r.set("auth:google_token", creds.to_json())
         return build('calendar', 'v3', credentials=creds)
     except: return None
 
@@ -88,7 +100,6 @@ async def update_event(
 ):
     try:
         service = get_calendar_service()
-        # 呼叫 patch 更新，並確保清除衝突的時間格式
         event = build_event_body(summary, description, start_date, start_time, end_date, end_time, is_all_day)
         service.events().patch(calendarId='primary', eventId=event_id, body=event).execute()
         return {"status": "success"}
@@ -108,7 +119,6 @@ def build_event_body(summary, desc, s_date, s_time, e_date, e_time, is_all_day):
         'description': desc,
     }
     if is_all_day == 'true':
-        # ★ 關鍵修正：若為全天，將 dateTime 設為 None，強制清除舊設定 ★
         if s_date == e_date:
             dt = datetime.strptime(e_date, "%Y-%m-%d") + timedelta(days=1)
             e_date = dt.strftime("%Y-%m-%d")
@@ -116,7 +126,6 @@ def build_event_body(summary, desc, s_date, s_time, e_date, e_time, is_all_day):
         body['start'] = {'date': s_date, 'dateTime': None}
         body['end'] = {'date': e_date, 'dateTime': None}
     else:
-        # ★ 關鍵修正：若為時間，將 date 設為 None ★
         start_dt = f"{s_date}T{s_time}:00"
         end_dt = f"{e_date}T{e_time}:00"
         
