@@ -35,7 +35,7 @@ SCOPES = [
 ]
 
 # 自動抓取 Render 網址
-APP_URL = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000")
+APP_URL = os.getenv("RENDER_EXTERNAL_URL", "https://mydashborad-part2-cloud.onrender.com")
 REDIRECT_URI = f"{APP_URL}/api/auth/callback"
 
 @router.get("/login")
