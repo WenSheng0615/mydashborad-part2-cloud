@@ -1,80 +1,78 @@
-from fastapi import APIRouter, Form
-from fastapi.responses import JSONResponse
-import redis
+import os
 import json
-import uuid
-import datetime
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import JSONResponse
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request as GoogleRequest
+from googleapiclient.discovery import build
+
+# ✅ 改用 SQLite
+from database import get_session_info, save_session
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
-# 請確保使用您的雲端 Redis 設定
-r = redis.Redis(host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
-    port=11812, decode_responses=True,
-    username="default",
-    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT",
-    socket_timeout=5
-)
 
-KEYS = {"todo": "tasks:todo", "doing": "tasks:doing", "done": "tasks:done"}
+def get_tasks_service(request: Request):
+    session_id = request.cookies.get("session_id")
+    if not session_id: return None
+    
+    session = get_session_info(session_id)
+    if not session: return None
+    token_json = session.token_json
+    
+    try:
+        info = json.loads(token_json)
+        creds = Credentials.from_authorized_user_info(info)
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(GoogleRequest())
+            save_session(session_id, creds.to_json(), session.user_email)
+        return build('tasks', 'v1', credentials=creds)
+    except: return None
 
 @router.get("/")
-async def get_tasks():
+async def get_tasks(request: Request):
     try:
-        data = {
-            "todo": [json.loads(x) for x in r.lrange(KEYS["todo"], 0, -1)],
-            "doing": [json.loads(x) for x in r.lrange(KEYS["doing"], 0, -1)],
-            "done": [json.loads(x) for x in r.lrange(KEYS["done"], 0, -1)]
-        }
-        return JSONResponse(data)
-    except: return JSONResponse({"todo": [], "doing": [], "done": []})
+        service = get_tasks_service(request)
+        if not service: return JSONResponse({"error": "Login Required"}, 401)
+        
+        lists_res = service.tasklists().list().execute()
+        tasklists = lists_res.get('items', [])
+        if not tasklists: return JSONResponse({"todo": [], "doing": [], "done": []})
+        
+        list_id = tasklists[0]['id']
+        tasks_res = service.tasks().list(tasklist=list_id, showCompleted=True).execute()
+        
+        todo, done = [], []
+        for t in tasks_res.get('items', []):
+            task_data = {
+                "id": t['id'], 
+                "content": t['title'], 
+                "due_date": t.get('due', ''), 
+                "list_id": list_id
+            }
+            if t['status'] == 'completed': done.append(task_data)
+            else: todo.append(task_data)
+                
+        return JSONResponse({"todo": todo, "doing": [], "done": done, "list_id": list_id})
+    except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
 @router.post("/add")
-async def add_task(content: str = Form(...), due_date: str = Form("")):
-    task = {
-        "id": str(uuid.uuid4()),
-        "content": content,
-        "due_date": due_date, # 新增截止時間
-        "created_at": datetime.datetime.now().strftime("%m/%d %H:%M")
-    }
-    r.rpush(KEYS["todo"], json.dumps(task))
-    return {"status": "success"}
-
-@router.post("/move")
-async def move_task(task_id: str = Form(...), from_stage: str = Form(...), to_stage: str = Form(...)):
-    if from_stage not in KEYS or to_stage not in KEYS: return {"error": "Invalid stage"}
-    
-    items = r.lrange(KEYS[from_stage], 0, -1)
-    target = None
-    for item in items:
-        if json.loads(item)['id'] == task_id:
-            target = item
-            break
-    
-    if target:
-        r.lrem(KEYS[from_stage], 1, target)
-        r.rpush(KEYS[to_stage], target)
+async def add_task(request: Request, content: str = Form(...), due_date: str = Form(""), list_id: str = Form("@default")):
+    try:
+        service = get_tasks_service(request)
+        if not service: return JSONResponse({"error": "Login Required"}, 401)
+        
+        task_body = {'title': content}
+        if due_date: task_body['due'] = f"{due_date}T00:00:00Z"
+        
+        service.tasks().insert(tasklist=list_id, body=task_body).execute()
         return {"status": "success"}
-    return {"error": "Task not found"}
-
-@router.post("/update")
-async def update_task(task_id: str = Form(...), content: str = Form(...), stage: str = Form(...), due_date: str = Form("")):
-    if stage not in KEYS: return {"error": "Invalid stage"}
-    
-    items = r.lrange(KEYS[stage], 0, -1)
-    for i, item in enumerate(items):
-        task = json.loads(item)
-        if task['id'] == task_id:
-            task['content'] = content
-            task['due_date'] = due_date # 更新時間
-            r.lset(KEYS[stage], i, json.dumps(task))
-            return {"status": "success"}
-            
-    return {"error": "Task not found"}
+    except Exception as e: return JSONResponse({"error": str(e)}, 500)
 
 @router.post("/delete")
-async def delete_task(task_id: str = Form(...), stage: str = Form(...)):
-    items = r.lrange(KEYS[stage], 0, -1)
-    for item in items:
-        if json.loads(item)['id'] == task_id:
-            r.lrem(KEYS[stage], 1, item)
-            break
-    return {"status": "success"}
+async def delete_task(request: Request, task_id: str = Form(...), list_id: str = Form("@default")):
+    try:
+        service = get_tasks_service(request)
+        if not service: return JSONResponse({"error": "Login Required"}, 401)
+        service.tasks().delete(tasklist=list_id, task=task_id).execute()
+        return {"status": "success"}
+    except Exception as e: return JSONResponse({"error": str(e)}, 500)

@@ -75,26 +75,19 @@ function drop(ev, toStage) {
 async function addTask() {
     const input = document.getElementById('task-input');
     const dateInput = document.getElementById('task-date');
-    const timeInput = document.getElementById('task-time');
 
     if (!input.value.trim()) return;
 
-    // 組合日期時間
-    let due = "";
-    if (dateInput.value) {
-        due = dateInput.value;
-        if (timeInput.value) due += " " + timeInput.value;
-    }
-
     const fd = new FormData();
     fd.append('content', input.value);
-    fd.append('due_date', due);
+    
+    // Google Tasks 截止日期處理
+    if (dateInput.value) {
+        fd.append('due_date', dateInput.value); // 後端會處理成 RFC3339
+    }
 
     await fetch('/api/tasks/add', { method: 'POST', body: fd });
-
     input.value = '';
-    // 保留日期，清空時間方便連續輸入
-    timeInput.value = '';
     loadTasks();
 }
 

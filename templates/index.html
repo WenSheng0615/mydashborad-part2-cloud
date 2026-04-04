@@ -694,6 +694,18 @@
         });
 
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.body.appendChild(tag);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js').then(reg => {
+                    console.log('SW Registered!', reg);
+                }).catch(err => console.log('SW Registration failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>);
     </script>
 </body>
 

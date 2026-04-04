@@ -1,102 +1,94 @@
-from fastapi import APIRouter, Form
-from fastapi.responses import JSONResponse
-import redis
-import json
+import os
 import uuid
-import datetime
+from datetime import datetime
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import JSONResponse
+from database import get_db, Transaction, Category, get_session_info
 
 router = APIRouter(prefix="/api/money", tags=["money"])
-# 使用您的雲端 Redis
-r = redis.Redis(
-    host='redis-11812.c326.us-east-1-3.ec2.cloud.redislabs.com',
-    port=11812,
-    decode_responses=True,
-    username="default",
-    password="peayWIVDRyeiuuVFDTeBE3T7Ia75H4wT",
-)
 
-# 預設類別 Key
-CAT_KEY = "user:money:categories" # Hash: { "飲食": "9000", "交通": "1000" }
-
-# get_data 也要修改讀取邏輯
 @router.get("/")
-async def get_data():
-    try:
-        raw_tx = r.lrange("money:transactions", 0, -1)
-        transactions = [json.loads(x) for x in raw_tx]
-        raw_cats = r.hgetall(CAT_KEY)
-        
-        categories = []
-        cat_stats = {} # { "飲食": { spent: 100, budget: 1000, type: 'expense' } }
-
-        # 解析類別設定
-        for name, data_str in raw_cats.items():
-            try:
-                data = json.loads(data_str) # 嘗試解析 JSON
-                cat_stats[name] = {"spent": 0, "budget": int(data['budget']), "type": data.get('type', 'expense')}
-            except:
-                # 相容舊資料 (純數字)
-                cat_stats[name] = {"spent": 0, "budget": int(data_str), "type": 'expense'}
-
-        income = 0
-        expense = 0
-        
-        for tx in transactions:
-            amt = int(tx['amount'])
-            if tx['type'] == 'income': income += amt
-            else: expense += amt
-            
-            if tx['category'] in cat_stats:
-                cat_stats[tx['category']]['spent'] += amt
-
-        for name, data in cat_stats.items():
-            status = "normal"
-            if data['type'] == 'expense' and data['spent'] > data['budget']: status = "over"
-            
-            categories.append({
-                "name": name, "budget": data['budget'], "spent": data['spent'], 
-                "status": status, "type": data['type']
-            })
-            
-        return JSONResponse({
-            "transactions": transactions,
-            "total_income": income, "total_expense": expense, "balance": income - expense,
-            "categories": categories
+async def get_money(request: Request):
+    session_id = request.cookies.get("session_id")
+    if not session_id: return JSONResponse({"transactions": [], "categories": []})
+    
+    session = get_session_info(session_id)
+    if not session: return JSONResponse({"transactions": [], "categories": []})
+    
+    db = get_db()
+    user_email = session.user_email
+    
+    txs = db.query(Transaction).filter(Transaction.user_email == user_email).order_by(Transaction.date.desc()).all()
+    cats = db.query(Category).filter(Category.user_email == user_email).all()
+    
+    income = 0
+    expense = 0
+    cat_spent = {c.name: 0 for c in cats}
+    
+    formatted_txs = []
+    for t in txs:
+        formatted_txs.append({
+            "id": t.id, "item": t.item, "amount": t.amount, 
+            "date": t.date, "type": t.type, "category": t.category, "note": t.note
         })
-    except Exception as e: return JSONResponse({"transactions": [], "categories": []})
+        if t.type == 'income': income += t.amount
+        else: expense += t.amount
+        
+        if t.category in cat_spent:
+            cat_spent[t.category] += t.amount
 
-@router.post("/category/add")
-async def add_category(name: str = Form(...), budget: int = Form(...), type: str = Form("expense")):
-    # 儲存結構改為 JSON 以包含類型
-    data = json.dumps({"budget": budget, "type": type})
-    r.hset(CAT_KEY, name, data)
-    return {"status": "success"}
-
-@router.post("/category/delete")
-async def delete_category(name: str = Form(...)):
-    r.hdel(CAT_KEY, name)
-    return {"status": "success"}
+    formatted_cats = []
+    for c in cats:
+        status = "normal"
+        if c.type == 'expense' and cat_spent[c.name] > c.budget: status = "over"
+        
+        formatted_cats.append({
+            "name": c.name, "budget": c.budget, "spent": cat_spent[c.name], 
+            "status": status, "type": c.type
+        })
+        
+    db.close()
+    return JSONResponse({
+        "transactions": formatted_txs,
+        "total_income": income, "total_expense": expense, "balance": income - expense,
+        "categories": formatted_cats
+    })
 
 @router.post("/add")
-async def add_transaction(item: str = Form(...), amount: int = Form(...), date: str = Form(...), type: str = Form(...), category: str = Form(...), note: str = Form("")):
-    tx = {
-        "id": str(uuid.uuid4()), "item": item, "amount": amount, "date": date,
-        "type": type, "category": category, "note": note
-    }
-    r.lpush("money:transactions", json.dumps(tx))
+async def add_tx(request: Request, item: str = Form(...), amount: float = Form(...), date: str = Form(...), type: str = Form(...), category: str = Form(...), note: str = Form("")):
+    session_id = request.cookies.get("session_id")
+    session = get_session_info(session_id)
+    if not session: return JSONResponse({"error": "unauthorized"}, 401)
+    
+    db = get_db()
+    new_tx = Transaction(
+        id=str(uuid.uuid4()), user_email=session.user_email,
+        item=item, amount=amount, date=date, type=type, category=category, note=note
+    )
+    db.add(new_tx)
+    db.commit()
+    db.close()
+    return {"status": "success"}
+
+@router.post("/category/add")
+async def add_cat(request: Request, name: str = Form(...), budget: float = Form(0), type: str = Form("expense")):
+    session_id = request.cookies.get("session_id")
+    session = get_session_info(session_id)
+    if not session: return JSONResponse({"error": "unauthorized"}, 401)
+    
+    db = get_db()
+    new_cat = Category(user_email=session.user_email, name=name, budget=budget, type=type)
+    db.add(new_cat)
+    db.commit()
+    db.close()
     return {"status": "success"}
 
 @router.post("/delete")
-async def delete_transaction(id: str = Form(...)):
-    raw_tx = r.lrange("money:transactions", 0, -1)
-    for item in raw_tx:
-        if json.loads(item)['id'] == id:
-            r.lrem("money:transactions", 1, item)
-            break
-    return {"status": "success"}
-
-@router.post("/reset")
-async def reset_money():
-    r.delete("money:transactions")
-    # 不刪除類別設定，只刪除交易
+async def delete_tx(request: Request, id: str = Form(...)):
+    db = get_db()
+    tx = db.query(Transaction).filter(Transaction.id == id).first()
+    if tx:
+        db.delete(tx)
+        db.commit()
+    db.close()
     return {"status": "success"}
