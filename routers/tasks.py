@@ -36,7 +36,8 @@ async def get_tasks(request: Request):
         
         lists_res = service.tasklists().list().execute()
         tasklists = lists_res.get('items', [])
-        if not tasklists: return JSONResponse({"todo": [], "doing": [], "done": []})
+        if not tasklists: 
+            return JSONResponse({"todo": [], "doing": [], "done": []})
         
         list_id = tasklists[0]['id']
         tasks_res = service.tasks().list(tasklist=list_id, showCompleted=True).execute()
