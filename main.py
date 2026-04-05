@@ -13,11 +13,6 @@ from services.firebase_service import init_firebase
 # 載入環境變數
 load_dotenv()
 
-app = FastAPI()
-
-# 初始化 Firebase
-init_firebase()
-
 # --- 部署專用：從環境變數還原憑證 ---
 def restore_credentials_from_env():
     # Google API 憑證
@@ -38,6 +33,11 @@ def restore_credentials_from_env():
         os.environ["FIREBASE_KEY_FILE"] = fb_path
 
 restore_credentials_from_env()
+
+app = FastAPI()
+
+# 初始化 Firebase (現在金鑰檔案已經還原了)
+init_firebase()
 
 # --- 路徑與掛載 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
