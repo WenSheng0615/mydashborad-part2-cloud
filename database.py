@@ -51,6 +51,15 @@ class Category(Base):
     budget = Column(Float, default=0)
     type = Column(String)
 
+class MusicHistory(Base):
+    __tablename__ = "music_history"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_email = Column(String, index=True)
+    video_id = Column(String)
+    title = Column(String)
+    thumbnail = Column(String)
+    played_at = Column(DateTime, default=datetime.utcnow)
+
 Base.metadata.create_all(bind=engine)
 
 # --- Utils ---

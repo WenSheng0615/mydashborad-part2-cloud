@@ -34,27 +34,34 @@ async def get_tasks(request: Request):
         service = get_tasks_service(request)
         if not service: return JSONResponse({"error": "Login Required"}, 401)
         
-        lists_res = service.tasklists().list().execute()
-        tasklists = lists_res.get('items', [])
-        if not tasklists: 
+        try:
+            lists_res = service.tasklists().list().execute()
+            tasklists = lists_res.get('items', [])
+            if not tasklists: 
+                return JSONResponse({"todo": [], "doing": [], "done": []})
+            
+            list_id = tasklists[0]['id']
+            tasks_res = service.tasks().list(tasklist=list_id, showCompleted=True).execute()
+            
+            todo, done = [], []
+            for t in tasks_res.get('items', []):
+                task_data = {
+                    "id": t['id'], 
+                    "content": t['title'], 
+                    "due_date": t.get('due', ''), 
+                    "list_id": list_id
+                }
+                if t['status'] == 'completed': done.append(task_data)
+                else: todo.append(task_data)
+                    
+            return JSONResponse({"todo": todo, "doing": [], "done": done, "list_id": list_id})
+        except Exception as api_e:
+            print(f"Google Tasks API Error: {api_e}")
             return JSONResponse({"todo": [], "doing": [], "done": []})
-        
-        list_id = tasklists[0]['id']
-        tasks_res = service.tasks().list(tasklist=list_id, showCompleted=True).execute()
-        
-        todo, done = [], []
-        for t in tasks_res.get('items', []):
-            task_data = {
-                "id": t['id'], 
-                "content": t['title'], 
-                "due_date": t.get('due', ''), 
-                "list_id": list_id
-            }
-            if t['status'] == 'completed': done.append(task_data)
-            else: todo.append(task_data)
-                
-        return JSONResponse({"todo": todo, "doing": [], "done": done, "list_id": list_id})
-    except Exception as e: return JSONResponse({"error": str(e)}, 500)
+            
+    except Exception as e: 
+        print(f"Tasks Router Error: {e}")
+        return JSONResponse({"error": str(e)}, 500)
 
 @router.post("/add")
 async def add_task(request: Request, content: str = Form(...), due_date: str = Form(""), list_id: str = Form("@default")):

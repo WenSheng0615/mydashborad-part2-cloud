@@ -9,7 +9,7 @@ from googleapiclient.discovery import build
 import shutil
 
 # ✅ 改用 SQLite
-from database import get_session_info, save_session
+from database import get_session_info, save_session, get_db, MusicHistory
 
 router = APIRouter(prefix="/api/music", tags=["music"])
 
@@ -111,3 +111,40 @@ async def search_youtube(request: Request, query: str):
             })
         return JSONResponse({"items": items})
     except Exception as e: return JSONResponse({"error": str(e)}, 500)
+
+@router.get("/history")
+async def get_history(request: Request):
+    session_id = request.cookies.get("session_id")
+    session = get_session_info(session_id)
+    if not session: return JSONResponse({"items": []})
+    
+    db = get_db()
+    history = db.query(MusicHistory).filter(MusicHistory.user_email == session.user_email).order_by(MusicHistory.played_at.desc()).limit(40).all()
+    
+    seen = set()
+    result = []
+    for h in history:
+        if h.video_id not in seen:
+            result.append({"id": h.video_id, "title": h.title, "thumbnail": h.thumbnail})
+            seen.add(h.video_id)
+            if len(result) >= 20: break
+    db.close()
+    return JSONResponse({"items": result})
+
+@router.post("/history/add")
+async def add_history(request: Request, video_id: str = Form(...), title: str = Form(...), thumbnail: str = Form(...)):
+    session_id = request.cookies.get("session_id")
+    session = get_session_info(session_id)
+    if not session: return {"status": "unauthorized"}
+    
+    db = get_db()
+    new_h = MusicHistory(
+        user_email=session.user_email,
+        video_id=video_id,
+        title=title,
+        thumbnail=thumbnail
+    )
+    db.add(new_h)
+    db.commit()
+    db.close()
+    return {"status": "success"}
