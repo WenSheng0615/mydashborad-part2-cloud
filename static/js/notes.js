@@ -43,20 +43,20 @@ function renderNotes() {
     };
 
     notesData.forEach(note => {
-        // 取得配色，若無則預設黃色
         const theme = colors[note.color] || colors['yellow'];
-
-        // ★ 強制寫入背景色與邊框色 ★
         const style = `background-color: ${theme.bg} !important; border-left: 5px solid ${theme.border} !important;`;
-
+        
         // 內容處理 (換行)
         const descHtml = note.description ? `<div class="note-desc">${note.description}</div>` : '<div class="note-desc" style="opacity:0.5; font-style:italic;">無內容</div>';
+        
+        // 圖片處理
+        const imageHtml = note.image_url ? `<div class="note-image" style="margin-bottom:10px; border-radius:8px; overflow:hidden;"><img src="${note.image_url}" style="width:100%; max-height:200px; object-fit:cover;"></div>` : '';
 
         if (noteLayout === 'grid') {
-            // === 格狀卡片 ===
             html += `
                 <div class="note-card" style="${style}">
                     <div class="note-header">
+                        ${imageHtml}
                         <div class="note-title">${note.title}</div>
                         ${descHtml}
                     </div>
@@ -66,12 +66,14 @@ function renderNotes() {
                     </div>
                 </div>`;
         } else {
-            // === 條列清單 ===
             html += `
                 <div class="note-card" style="${style}">
-                    <div class="note-content-wrapper">
-                        <div class="note-title" style="min-width:150px;">${note.title}</div>
-                        ${descHtml}
+                    <div class="note-content-wrapper" style="display:flex; gap:15px; align-items:center;">
+                        ${note.image_url ? `<img src="${note.image_url}" style="width:50px; height:50px; border-radius:4px; object-fit:cover;">` : ''}
+                        <div>
+                            <div class="note-title" style="min-width:150px;">${note.title}</div>
+                            ${descHtml}
+                        </div>
                     </div>
                     <div class="note-footer" style="margin-left:20px; border:none; padding:0;">
                         <span class="note-time">${note.created_at}</span>
@@ -89,12 +91,16 @@ function openNoteModal() {
     document.getElementById('modal-note-title').focus();
 }
 
-function closeNoteModal() { document.getElementById('note-modal').style.display = 'none'; }
+function closeNoteModal() { 
+    document.getElementById('note-modal').style.display = 'none'; 
+    document.getElementById('modal-note-image').value = '';
+}
 
 async function submitNote() {
     const title = document.getElementById('modal-note-title').value;
     const desc = document.getElementById('modal-note-desc').value;
     const color = document.getElementById('modal-note-color').value;
+    const imageFile = document.getElementById('modal-note-image').files[0];
 
     if (!title.trim()) return alert("請輸入標題");
 
@@ -102,13 +108,29 @@ async function submitNote() {
     fd.append('title', title);
     fd.append('description', desc);
     fd.append('color', color);
+    if (imageFile) {
+        fd.append('image', imageFile);
+    }
 
-    await fetch('/api/notes/add', { method: 'POST', body: fd });
+    // 顯示上傳中提示
+    const submitBtn = document.querySelector('#note-modal .btn-confirm');
+    const originalText = submitBtn.innerText;
+    submitBtn.innerText = "上傳中...";
+    submitBtn.disabled = true;
 
-    document.getElementById('modal-note-title').value = '';
-    document.getElementById('modal-note-desc').value = '';
-    closeNoteModal();
-    loadNotes();
+    try {
+        await fetch('/api/notes/add', { method: 'POST', body: fd });
+        document.getElementById('modal-note-title').value = '';
+        document.getElementById('modal-note-desc').value = '';
+        document.getElementById('modal-note-image').value = '';
+        closeNoteModal();
+        loadNotes();
+    } catch (e) {
+        alert("新增失敗");
+    } finally {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+    }
 }
 
 async function deleteNote(id) {

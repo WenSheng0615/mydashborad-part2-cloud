@@ -5,13 +5,22 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import uvicorn
+from dotenv import load_dotenv
 from routers import drive, music, auth, calendar, notes, tasks, money, chat
 from database import get_db, Note, get_session_info
+from services.firebase_service import init_firebase
+
+# 載入環境變數
+load_dotenv()
 
 app = FastAPI()
 
+# 初始化 Firebase
+init_firebase()
+
 # --- 部署專用：從環境變數還原憑證 ---
 def restore_credentials_from_env():
+    # Google API 憑證
     token_content = os.getenv("GOOGLE_TOKEN")
     if token_content:
         with open("token.json", "w") as f: f.write(token_content)
@@ -19,6 +28,14 @@ def restore_credentials_from_env():
     creds_content = os.getenv("GOOGLE_CREDENTIALS")
     if creds_content:
         with open("credentials.json", "w") as f: f.write(creds_content)
+
+    # Firebase 憑證
+    fb_content = os.getenv("FIREBASE_KEY_CONTENT")
+    fb_path = os.getenv("FIREBASE_KEY_FILE", "firebase_key.json")
+    if fb_content:
+        with open(fb_path, "w") as f: f.write(fb_content)
+        # 確保環境變數指向正確的路徑供 firebase_service 使用
+        os.environ["FIREBASE_KEY_FILE"] = fb_path
 
 restore_credentials_from_env()
 
@@ -56,7 +73,8 @@ async def read_root(request: Request):
                     "id": n.id, 
                     "title": n.title, 
                     "description": n.content, 
-                    "color": n.color, 
+                    "color": n.color,
+                    "image_url": n.image_url,
                     "created_at": n.created_at
                 })
             db.close()

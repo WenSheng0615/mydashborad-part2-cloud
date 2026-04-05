@@ -46,11 +46,15 @@
                 </div>
                 <input type="text" id="modal-note-title" placeholder="標題"
                     style="background:var(--input-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; color:var(--text-main); outline:none; font-weight:bold;">
+                <div style="margin-top:5px;">
+                    <label style="display:block;margin-bottom:5px;font-size:0.8rem;color:var(--text-sub);">附帶圖片 (Firebase Storage)</label>
+                    <input type="file" id="modal-note-image" accept="image/*" style="width:100%;color:var(--text-main);font-size:0.8rem;">
+                </div>
                 <textarea id="modal-note-desc" placeholder="輸入內容..."
                     style="background:var(--input-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; color:var(--text-main); outline:none; resize:none; height:120px; font-family:'Segoe UI';"></textarea>
                 <div style="display:flex; gap:10px; margin-top:10px;">
-                    <button class="btn-preview-action btn-secondary" onclick="closeNoteModal()">取消</button>
-                    <button class="btn-preview-action btn-primary" onclick="submitNote()">儲存</button>
+                    <button class="btn-tool" style="width:auto; padding:0 15px; background:var(--input-bg); color:var(--text-main);" onclick="closeNoteModal()">取消</button>
+                    <button class="btn-tool" style="width:auto; padding:0 15px; background:var(--accent); color:white;" onclick="submitNote()">儲存</button>
                 </div>
             </div>
         </div>

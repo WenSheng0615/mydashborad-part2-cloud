@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 from database import get_db, Transaction, Category, get_session_info
+from services.money_service import get_money_summary
 
 router = APIRouter(prefix="/api/money", tags=["money"])
 
@@ -16,43 +17,9 @@ async def get_money(request: Request):
     if not session: return JSONResponse({"transactions": [], "categories": []})
     
     db = get_db()
-    user_email = session.user_email
-    
-    txs = db.query(Transaction).filter(Transaction.user_email == user_email).order_by(Transaction.date.desc()).all()
-    cats = db.query(Category).filter(Category.user_email == user_email).all()
-    
-    income = 0
-    expense = 0
-    cat_spent = {c.name: 0 for c in cats}
-    
-    formatted_txs = []
-    for t in txs:
-        formatted_txs.append({
-            "id": t.id, "item": t.item, "amount": t.amount, 
-            "date": t.date, "type": t.type, "category": t.category, "note": t.note
-        })
-        if t.type == 'income': income += t.amount
-        else: expense += t.amount
-        
-        if t.category in cat_spent:
-            cat_spent[t.category] += t.amount
-
-    formatted_cats = []
-    for c in cats:
-        status = "normal"
-        if c.type == 'expense' and cat_spent[c.name] > c.budget: status = "over"
-        
-        formatted_cats.append({
-            "name": c.name, "budget": c.budget, "spent": cat_spent[c.name], 
-            "status": status, "type": c.type
-        })
-        
+    data = get_money_summary(db, session.user_email)
     db.close()
-    return JSONResponse({
-        "transactions": formatted_txs,
-        "total_income": income, "total_expense": expense, "balance": income - expense,
-        "categories": formatted_cats
-    })
+    return JSONResponse(data)
 
 @router.post("/add")
 async def add_tx(request: Request, item: str = Form(...), amount: float = Form(...), date: str = Form(...), type: str = Form(...), category: str = Form(...), note: str = Form("")):

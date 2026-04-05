@@ -29,6 +29,7 @@ class Note(Base):
     title = Column(String)
     content = Column(Text)
     color = Column(String, default="yellow")
+    image_url = Column(String, nullable=True) # 儲存 Firebase 下載連結
     created_at = Column(String) # 改存字串方便前端顯示
 
 class Transaction(Base):

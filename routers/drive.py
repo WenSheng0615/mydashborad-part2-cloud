@@ -90,3 +90,24 @@ async def delete_file(request: Request, file_id: str = Form(...)):
         service.files().delete(fileId=file_id).execute()
         return {"status": "success"}
     except Exception as e: return JSONResponse({"error": str(e)}, 500)
+
+@router.post("/move")
+async def move_file(request: Request, file_id: str = Form(...), folder_id: str = Form(...)):
+    try:
+        service = get_drive_service(request)
+        if not service: return JSONResponse({"error": "Login Required"}, 401)
+        
+        # 取得檔案目前的 parents
+        file = service.files().get(fileId=file_id, fields='parents').execute()
+        previous_parents = ",".join(file.get('parents', []))
+        
+        # 移動檔案
+        service.files().update(
+            fileId=file_id,
+            addParents=folder_id,
+            removeParents=previous_parents,
+            fields='id, parents'
+        ).execute()
+        
+        return {"status": "success"}
+    except Exception as e: return JSONResponse({"error": str(e)}, 500)

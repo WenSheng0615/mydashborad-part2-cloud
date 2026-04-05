@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FocusFlow OS</title>
+    <link rel="manifest" href="/static/manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="/static/css/drive.css?v=4001">
@@ -533,6 +534,13 @@
                     class="btn-modal btn-confirm" id="modal-confirm-btn">確定</button></div>
         </div>
     </div>
+    <div id="alert-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="alert-title" class="modal-title">通知</h3>
+            <p id="alert-desc" class="modal-desc">內容</p>
+            <div><button class="btn-modal btn-confirm" onclick="closeAlert()">確定</button></div>
+        </div>
+    </div>
     <div id="note-modal" class="modal-overlay">
         <div class="modal-box" style="width:450px; text-align:left;">
             <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
@@ -547,7 +555,12 @@
                     <option value="pink">🔴 紅色</option>
                 </select><input type="text" id="modal-note-title" placeholder="標題"
                     style="flex:2;background:var(--input-bg);border:1px solid var(--border-color);padding:10px;border-radius:8px;color:var(--text-main);outline:none;">
-            </div><textarea id="modal-note-desc" placeholder="內容..."
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:5px;font-size:0.9rem;color:var(--text-sub);">附帶圖片 (Firebase Storage)</label>
+                <input type="file" id="modal-note-image" accept="image/*" style="width:100%;color:var(--text-main);font-size:0.9rem;">
+            </div>
+            <textarea id="modal-note-desc" placeholder="內容..."
                 style="width:100%;height:150px;background:var(--input-bg);border:1px solid var(--border-color);padding:12px;color:var(--text-main);resize:none;box-sizing:border-box;border-radius:8px;"></textarea><button
                 class="btn-modal btn-confirm" style="width:100%;margin-top:20px;" onclick="submitNote()">儲存</button>
         </div>
@@ -607,6 +620,19 @@
         function showConfirmModal(title, desc, cb) { document.getElementById('modal-title').innerText = title; document.getElementById('modal-desc').innerText = desc; confirmCallback = cb; document.getElementById('confirm-modal').style.display = 'flex'; }
         function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; confirmCallback = null; }
         document.getElementById('modal-confirm-btn').onclick = () => { if (confirmCallback) confirmCallback(); closeModal(); };
+
+        let alertCallback = null;
+        function showAlert(title, desc, cb = null) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-desc').innerText = desc;
+            alertCallback = cb;
+            document.getElementById('alert-modal').style.display = 'flex';
+        }
+        function closeAlert() {
+            document.getElementById('alert-modal').style.display = 'none';
+            if (alertCallback) alertCallback();
+            alertCallback = null;
+        }
 
         function openApp(name) {
             document.getElementById('launcher').classList.add('hidden');
