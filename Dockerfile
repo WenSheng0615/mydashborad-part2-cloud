@@ -1,9 +1,13 @@
 # 使用官方 Python 輕量版
 FROM python:3.11-slim
 
-# 安裝系統依賴 (ffmpeg 是 yt-dlp 必備)
+# 安裝系統依賴
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    build-essential \
+    python3-dev \
+    pkg-config \
+    default-libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 設定工作目錄
