@@ -1,5 +1,32 @@
+# Python 快取
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# 環境變數與金鑰 (極度危險，嚴禁上傳)
+.env
 token.json
 credentials.json
+firebase_key.json
+*.json
+
+# 排除所有 Firebase Admin SDK 金鑰 (針對目前的檔名模式)
+mydashborad-cloud-firebase-adminsdk-*.json
+
+# 資料庫與暫存檔
+focusflow.db
+temp/
+
+# 執行檔與工具
 ffmpeg.exe
+ffmpeg
+ffprobe
+ffplay
+
+# 日誌
+*.log
+
+# 系統檔案
+.DS_Store
+Thumbs.db
