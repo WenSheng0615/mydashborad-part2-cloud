@@ -28,8 +28,9 @@ SCOPES = [
     'openid'
 ]
 
-APP_URL = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000")
-REDIRECT_URI = f"{APP_URL}/api/auth/callback"
+APP_URL = os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000").rstrip("/")
+# 優先使用手動指定的 REDIRECT_URI，否則自動生成
+REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", f"{APP_URL}/api/auth/callback")
 
 @router.get("/login")
 async def login(response: Response):
