@@ -73,27 +73,50 @@ async def auth_callback(request: Request):
     except Exception as e:
         return JSONResponse({"error": f"驗證失敗: {str(e)}"}, 500)
 
+@router.get("/guest")
+async def guest_login():
+    session_id = str(uuid.uuid4())
+    # 訪客使用空的 token_json，但有固定的 email 標記
+    save_session(session_id, "{}", "guest@focusflow.local")
+
+    res = RedirectResponse(url="/")
+    res.set_cookie(key="session_id", value=session_id, httponly=True, max_age=86400, samesite="lax")
+    return res
+
 @router.get("/user")
 async def get_user_info(request: Request):
     from database import get_session_info
     session_id = request.cookies.get("session_id")
     if not session_id: return JSONResponse({"logged_in": False})
-    
+
     session = get_session_info(session_id)
     if not session: return JSONResponse({"logged_in": False})
-    
+
+    # ✅ 處理訪客模式
+    if session.user_email == "guest@focusflow.local":
+        return JSONResponse({
+            "logged_in": True,
+            "is_guest": True,
+            "info": {
+                "name": "訪客使用者",
+                "email": "Guest Mode",
+                "picture": "https://cdn-icons-png.flaticon.com/512/1144/1144760.png"
+            }
+        })
+
     try:
         info = json.loads(session.token_json)
         creds = Credentials.from_authorized_user_info(info, SCOPES)
         if creds.expired and creds.refresh_token:
             creds.refresh(GoogleRequest())
             save_session(session_id, creds.to_json(), session.user_email)
-        
+
         service = build('oauth2', 'v2', credentials=creds)
         user_info = service.userinfo().get().execute()
-        
+
         return JSONResponse({
             "logged_in": True, 
+            "is_guest": False,
             "info": {"name": user_info.get('name'), "email": user_info.get('email'), "picture": user_info.get('picture')}
         })
     except:

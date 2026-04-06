@@ -231,18 +231,26 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
 
 .yt-search-box input {
     flex: 1;
-    background-color: var(--bg-input) !important;
-    border: 1px solid var(--border);
-    padding: 10px 15px;
-    border-radius: 8px;
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--border-color);
+    padding: 12px 18px;
+    border-radius: 12px;
     color: var(--text-main) !important;
     outline: none;
-    transition: 0.3s;
+    font-size: 0.95rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .yt-search-box input:focus {
     border-color: var(--accent);
-    background-color: var(--bg-card) !important;
+    background-color: var(--card-bg) !important;
+    box-shadow: 0 0 0 3px var(--accent-dim), inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.yt-search-box input::placeholder {
+    color: var(--text-sub);
+    opacity: 0.6;
 }
 
 /* 按鈕 */

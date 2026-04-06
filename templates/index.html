@@ -617,6 +617,7 @@
 
     <script>
         let confirmCallback = null;
+        let isGuest = false;
         function showConfirmModal(title, desc, cb) { document.getElementById('modal-title').innerText = title; document.getElementById('modal-desc').innerText = desc; confirmCallback = cb; document.getElementById('confirm-modal').style.display = 'flex'; }
         function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; confirmCallback = null; }
         document.getElementById('modal-confirm-btn').onclick = () => { if (confirmCallback) confirmCallback(); closeModal(); };
@@ -635,6 +636,13 @@
         }
 
         function openApp(name) {
+            // ✅ 訪客權限攔截
+            const googleApps = ['drive', 'music', 'calendar', 'tasks'];
+            if (isGuest && googleApps.includes(name)) {
+                showAlert('權限受限', '訪客模式無法使用雲端功能，請登入 Google 帳號以開啟此應用程式。');
+                return;
+            }
+
             document.getElementById('launcher').classList.add('hidden');
             document.getElementById('sidebar').classList.add('active');
             document.getElementById('workspace').classList.add('active');
@@ -668,7 +676,10 @@
 
                 let html = data.logged_in ?
                     `<div class="user-badge" onclick="logout()"><img src="${data.info.picture}"><span>${data.info.name}</span></div>` :
-                    `<button class="btn-tool" style="width:auto;padding:0 15px;" onclick="checkLogin(true)">登入</button>`;
+                    `<div style="display:flex; gap:10px;">
+                        <button class="btn-tool" style="width:auto;padding:0 15px;" onclick="checkLogin(true)">Google 登入</button>
+                        <button class="btn-tool" style="width:auto;padding:0 15px; background:var(--input-bg); color:var(--text-sub);" onclick="location.href='/api/auth/guest'">訪客試用</button>
+                    </div>`;
 
                 document.querySelectorAll('.user-placeholder').forEach(el => el.innerHTML = html);
 
@@ -728,10 +739,6 @@
                 }).catch(err => console.log('SW Registration failed:', err));
             });
         }
-    </script>
-</body>
-
-</html>);
     </script>
 </body>
 
