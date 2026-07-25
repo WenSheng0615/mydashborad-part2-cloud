@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float
+from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -60,7 +60,59 @@ class MusicHistory(Base):
     thumbnail = Column(String)
     played_at = Column(DateTime, default=datetime.utcnow)
 
+class ExamSession(Base):
+    __tablename__ = "exam_sessions"
+    id = Column(String, primary_key=True, index=True)
+    user_email = Column(String, index=True)
+    bank_id = Column(String, index=True)
+    bank_name = Column(String)
+    total = Column(Integer)
+    correct = Column(Integer)
+    score = Column(Float)       # 0~100
+    created_at = Column(String)
+
+class ExamAnswer(Base):
+    __tablename__ = "exam_answers"
+    id = Column(String, primary_key=True, index=True)
+    session_id = Column(String, index=True)
+    question_content = Column(Text)
+    question_type = Column(String)   # single / multiple
+    options_json = Column(Text)      # [{text, is_correct}]
+    selected_json = Column(Text)     # [text, ...]  使用者選的
+    is_correct = Column(Boolean)
+
+class QuizBank(Base):
+    __tablename__ = "quiz_banks"
+    id = Column(String, primary_key=True, index=True)
+    user_email = Column(String, index=True)
+    name = Column(String)
+    description = Column(Text, default="")
+    created_at = Column(String)
+
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+    id = Column(String, primary_key=True, index=True)
+    bank_id = Column(String, index=True)
+    content = Column(Text)
+    type = Column(String, default="single")  # single / multiple
+    tag = Column(String, default="")
+    created_at = Column(String)
+
+class QuizOption(Base):
+    __tablename__ = "quiz_options"
+    id = Column(String, primary_key=True, index=True)
+    question_id = Column(String, index=True)
+    text = Column(String)
+    is_correct = Column(Boolean, default=False)
+
 Base.metadata.create_all(bind=engine)
+
+# 補上舊版資料庫缺少的欄位
+with engine.connect() as _conn:
+    _cols = [row[1] for row in _conn.exec_driver_sql("PRAGMA table_info(quiz_questions)").fetchall()]
+    if "tag" not in _cols:
+        _conn.exec_driver_sql("ALTER TABLE quiz_questions ADD COLUMN tag VARCHAR DEFAULT ''")
+        _conn.commit()
 
 # --- Utils ---
 

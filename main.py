@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import uvicorn
 from dotenv import load_dotenv
-from routers import drive, music, auth, calendar, notes, tasks, money, chat
+from routers import drive, music, auth, calendar, notes, tasks, money, chat, quiz
 from database import get_db, Note, get_session_info
 from services.firebase_service import init_firebase
 
@@ -55,6 +55,7 @@ app.include_router(notes.router)
 app.include_router(tasks.router)
 app.include_router(money.router)
 app.include_router(chat.router)
+app.include_router(quiz.router)
 
 templates = Jinja2Templates(directory=templates_path)
 

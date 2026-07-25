@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/static/css/money.css?v=4001">
     <link rel="stylesheet" href="/static/css/chat.css?v=4001">
     <link rel="stylesheet" href="/static/css/settings.css?v=4001">
+    <link rel="stylesheet" href="/static/css/quiz.css?v=4002">
 
     <style>
         :root {
@@ -176,7 +177,7 @@
             height: 100%;
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(2, 1fr);
+            grid-auto-rows: 1fr;
             gap: 30px;
             padding: 80px;
             box-sizing: border-box;
@@ -578,8 +579,8 @@
         </div>
         <div class="app-icon-card" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i><span>Money</span></div>
         <div class="app-icon-card" onclick="openApp('chat')"><i class="fa-solid fa-comments"></i><span>Chat</span></div>
-        <div class="app-icon-card" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span>
-        </div>
+        <div class="app-icon-card" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
+        <div class="app-icon-card" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i><span>Quiz</span></div>
     </div>
 
     <nav id="sidebar">
@@ -592,6 +593,7 @@
         <div class="nav-item" id="nav-money" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i></div>
         <div class="nav-item" id="nav-chat" onclick="openApp('chat')"><i class="fa-solid fa-comments"></i></div>
         <div class="nav-item" id="nav-settings" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i></div>
+        <div class="nav-item" id="nav-quiz" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i></div>
         <div class="nav-item home-btn" onclick="goHome()"><i class="fa-solid fa-th-large"></i></div>
     </nav>
 
@@ -604,6 +606,7 @@
         {% include 'partials/money.html' %}
         {% include 'partials/chat.html' %}
         {% include 'partials/settings.html' %}
+        {% include 'partials/quiz.html' %}
     </main>
 
     <script src="/static/js/drive.js?v=4001"></script>
@@ -661,6 +664,7 @@
             if (name === 'tasks') loadTasks();
             if (name === 'money') loadMoney();
             if (name === 'settings') initSettings();
+            if (name === 'quiz') initQuiz();
         }
 
         function goHome() {
