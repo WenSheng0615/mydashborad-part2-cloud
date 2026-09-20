@@ -1,0 +1,17 @@
+.git
+.venv
+.local
+.pytest_cache
+**/__pycache__
+.env
+.env.*
+*.db
+*.db-*
+*.sqlite*
+credentials.json
+token.json
+*firebase*.json
+temp
+work
+
+client_secret_*.json

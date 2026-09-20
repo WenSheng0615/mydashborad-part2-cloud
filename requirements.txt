@@ -35,3 +35,8 @@ uvicorn==0.38.0
 watchfiles==1.1.1
 websockets==15.0.1
 yt-dlp==2026.3.17
+
+alembic==1.18.4
+
+Pillow==12.1.0
+tzdata==2025.2

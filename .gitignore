@@ -30,3 +30,14 @@ ffplay
 # 系統檔案
 .DS_Store
 Thumbs.db
+
+# Local development and database backups
+.venv/
+.pytest_cache/
+.local/
+*.db
+*.db-*
+*.sqlite*
+.env.*
+!.env.example
+client_secret_*.json
