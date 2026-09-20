@@ -21,4 +21,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Render 會自動提供 $PORT 環境變數，我們讓 uvicorn 監聽它
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["python", "serve.py"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.getenv('PORT','8000')+'/health/ready',timeout=4)"
