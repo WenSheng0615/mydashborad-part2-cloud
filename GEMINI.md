@@ -1,5 +1,7 @@
 # FocusFlow OS - 開發進度與結構紀錄
 
+> 歷史文件（2026-04-05）：保留原開發紀錄。模型已移至 models/，遷移已改用 Alembic，新增 /projects 與共用 CSS。最新入口請看 README.md 和 V2_IMPLEMENTATION_PLAN.md；原 Drive 資料夾樹、money_service 測試、多語系規劃已納入最新待辦。
+
 這份檔案由 Gemini CLI 自動生成，用於紀錄專案結構、開發狀態及後續規劃。
 
 ## 🚀 專案概述
