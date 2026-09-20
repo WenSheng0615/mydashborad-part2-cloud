@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FocusFlow OS</title>
+    <link rel="stylesheet" href="/static/css/theme.css?v=6000">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -18,515 +19,12 @@
     <link rel="stylesheet" href="/static/css/settings.css?v=4001">
     <link rel="stylesheet" href="/static/css/quiz.css?v=4002">
 
-    <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --sidebar-bg: #000000;
-            --accent: #e63946;
-            --text-main: #ffffff;
-            --text-sub: #b0b0b0;
-            --border-color: #333;
-            --input-bg: #2a2a2a;
-            --bg-hover: #333333;
-            --accent-dim: rgba(230, 57, 70, 0.15);
-            --accent-shadow: rgba(230, 57, 70, 0.4);
-            --today-bg: rgba(230, 57, 70, 0.15);
-            --scroll-track: #1e1e1e;
-            --scroll-thumb: #444;
-            --range-bg: #404040;
-        }
-
-        body.light-mode {
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --sidebar-bg: #ffffff;
-            --input-bg: #e4e6eb;
-            --border-color: #dbe0e6;
-            --bg-hover: #e4e6eb;
-            --text-main: #1a1a1a;
-            --text-sub: #65676b;
-            --accent: #007bff;
-            --accent-dim: rgba(0, 123, 255, 0.15);
-            --accent-shadow: rgba(0, 123, 255, 0.4);
-            --today-bg: rgba(0, 123, 255, 0.1);
-            --scroll-track: #f0f0f0;
-            --scroll-thumb: #bcc0c4;
-            --range-bg: #d1d5db;
-        }
-
-        body {
-            margin: 0;
-            background-color: var(--bg-color) !important;
-            color: var(--text-main) !important;
-            font-family: 'Segoe UI', sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            transition: background 0.3s, color 0.3s;
-        }
-
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--scroll-thumb);
-            border-radius: 3px;
-        }
-
-        #sidebar {
-            width: 80px;
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 30px;
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            z-index: 100;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease, background 0.3s;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-        }
-
-        #sidebar.active {
-            transform: translateX(0);
-        }
-
-        .nav-item {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--text-sub);
-            font-size: 1.2rem;
-            transition: 0.2s;
-        }
-
-        .nav-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-main);
-        }
-
-        .nav-item.active {
-            background: var(--accent);
-            color: white;
-            box-shadow: 0 4px 15px var(--accent-shadow);
-        }
-
-        .home-btn {
-            margin-top: auto;
-            margin-bottom: 80px;
-        }
-
-        #workspace {
-            flex-grow: 1;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-color);
-            overflow: hidden;
-            width: 100%;
-            transition: margin-left 0.3s;
-        }
-
-        #sidebar.active+#workspace {
-            margin-left: 80px;
-            width: calc(100% - 80px);
-        }
-
-        .app-view {
-            display: none;
-            height: 100%;
-            padding: 20px;
-            box-sizing: border-box;
-            flex-direction: column;
-            background-color: var(--bg-color) !important;
-            width: 100%;
-        }
-
-        .app-view.active {
-            display: flex;
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        #launcher {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-auto-rows: 1fr;
-            gap: 30px;
-            padding: 80px;
-            box-sizing: border-box;
-            background: var(--bg-color);
-            z-index: 50;
-            transition: 0.3s;
-        }
-
-        #launcher.hidden {
-            transform: scale(1.1);
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .app-icon-card {
-            background: var(--card-bg);
-            border-radius: 24px;
-            border: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .app-icon-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--accent);
-            background: var(--input-bg);
-        }
-
-        .app-icon-card i {
-            font-size: 3.5rem;
-            margin-bottom: 20px;
-            color: var(--accent) !important;
-        }
-
-        .app-icon-card span {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-            flex-shrink: 0;
-        }
-
-        .app-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-main);
-            margin: 0;
-        }
-
-        .user-badge {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--card-bg);
-            padding: 6px 15px;
-            border-radius: 20px;
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-        }
-
-        .user-badge img {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .btn-tool {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--input-bg);
-            color: var(--text-sub);
-            transition: 0.2s;
-            font-size: 1.1rem;
-        }
-
-        .btn-tool:hover {
-            background: var(--accent);
-            color: white;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-box {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
-            width: 350px;
-            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8);
-            text-align: center;
-            color: var(--text-main);
-        }
-
-        .btn-modal {
-            padding: 8px 20px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            margin: 0 5px;
-        }
-
-        .btn-confirm {
-            background: var(--accent);
-            color: white;
-        }
-
-        .btn-cancel {
-            background: var(--input-bg);
-            color: var(--text-main);
-        }
-
-        .custom-select {
-            background-color: var(--input-bg);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            border-radius: 8px;
-            outline: none;
-        }
-
-        @media (max-width: 768px) {
-            #sidebar {
-                width: 100%;
-                height: 60px;
-                top: auto;
-                bottom: 0;
-                left: 0;
-                flex-direction: row;
-                justify-content: space-around;
-                padding: 0;
-                border-right: none;
-                border-top: 1px solid var(--border-color);
-                transform: translateY(100%);
-                transition: transform 0.3s ease;
-                background: var(--card-bg);
-            }
-
-            #sidebar.active {
-                transform: translateY(0);
-            }
-
-            .nav-item {
-                margin: 0;
-                height: 100%;
-                width: 100%;
-                border-radius: 0;
-                font-size: 1.3rem;
-            }
-
-            .nav-item.active {
-                box-shadow: inset 0 4px 0 var(--accent);
-                background: transparent;
-                color: var(--accent);
-            }
-
-            .home-btn {
-                display: none;
-            }
-
-            #sidebar.active+#workspace {
-                margin-left: 0;
-                width: 100%;
-                height: calc(100% - 60px);
-            }
-
-            #workspace {
-                width: 100%;
-                margin: 0;
-            }
-
-            .app-view {
-                padding: 10px;
-                overflow-y: auto;
-                padding-bottom: 70px;
-            }
-
-            #launcher {
-                grid-template-columns: repeat(2, 1fr);
-                padding: 40px 20px;
-                gap: 15px;
-            }
-
-            .app-icon-card {
-                height: 110px;
-            }
-
-            .app-icon-card i {
-                font-size: 2.2rem;
-                margin-bottom: 10px;
-            }
-
-            .music-layout {
-                flex-direction: column;
-                overflow-y: auto;
-                gap: 20px;
-                height: auto;
-            }
-
-            .now-playing {
-                max-width: 100%;
-                border: none;
-                background: transparent;
-                padding: 0;
-            }
-
-            #player-art-container {
-                max-height: 250px;
-            }
-
-            .playlist-side {
-                flex: none;
-                height: auto;
-                border: none;
-                background: transparent;
-                padding: 0;
-                min-height: 400px;
-            }
-
-            .drive-layout {
-                flex-direction: column;
-                height: auto;
-            }
-
-            .drive-sidebar {
-                display: none;
-            }
-
-            .grid-files {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-
-            .drive-toolbar {
-                flex-wrap: wrap;
-                gap: 10px;
-                padding: 10px;
-            }
-
-            .search-wrapper {
-                order: 3;
-                width: 100%;
-                max-width: 100%;
-                margin: 0;
-            }
-
-            .calendar-layout {
-                flex-direction: column;
-                overflow-y: auto;
-                height: auto;
-            }
-
-            .calendar-sidebar {
-                min-width: 100%;
-                border: none;
-                background: transparent;
-                padding: 0;
-                margin-top: 20px;
-                min-height: 300px;
-            }
-
-            .notes-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .kanban-board {
-                flex-direction: column;
-                overflow-x: hidden;
-                overflow-y: auto;
-                height: auto;
-            }
-
-            .kanban-column {
-                min-width: 100%;
-                margin-bottom: 15px;
-                height: auto;
-                min-height: 200px;
-            }
-
-            .money-hero-section {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .notion-table {
-                overflow-x: auto;
-            }
-
-            .nt-cell:nth-child(4),
-            .nt-cell:nth-child(5) {
-                display: none;
-            }
-
-            .chat-container {
-                border-radius: 12px;
-            }
-
-            .modal-box {
-                width: 90%;
-                max-width: 350px;
-                padding: 20px;
-            }
-
-            .app-title {
-                font-size: 1.4rem;
-            }
-
-            .user-badge span {
-                display: none;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/dashboard.css?v=6000">
+    <link rel="stylesheet" href="/static/css/components.css?v=6000">
 </head>
 
 <body>
+    <script src="/static/js/theme.js?v=6000"></script>
     <div id="confirm-modal" class="modal-overlay">
         <div class="modal-box">
             <h3 id="modal-title" class="modal-title">確認</h3>
@@ -542,32 +40,8 @@
             <div><button class="btn-modal btn-confirm" onclick="closeAlert()">確定</button></div>
         </div>
     </div>
-    <div id="note-modal" class="modal-overlay">
-        <div class="modal-box" style="width:450px; text-align:left;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-                <h3 class="modal-title">新增筆記</h3><button class="btn-tool" style="width:30px;height:30px;"
-                    onclick="closeNoteModal()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div style="display:flex;gap:10px;margin-bottom:15px;"><select id="modal-note-color" class="custom-select"
-                    style="flex:1;">
-                    <option value="yellow">🟡 黃色</option>
-                    <option value="blue">🔵 藍色</option>
-                    <option value="green">🟢 綠色</option>
-                    <option value="pink">🔴 紅色</option>
-                </select><input type="text" id="modal-note-title" placeholder="標題"
-                    style="flex:2;background:var(--input-bg);border:1px solid var(--border-color);padding:10px;border-radius:8px;color:var(--text-main);outline:none;">
-            </div>
-            <div style="margin-bottom:15px;">
-                <label style="display:block;margin-bottom:5px;font-size:0.9rem;color:var(--text-sub);">附帶圖片 (Firebase Storage)</label>
-                <input type="file" id="modal-note-image" accept="image/*" style="width:100%;color:var(--text-main);font-size:0.9rem;">
-            </div>
-            <textarea id="modal-note-desc" placeholder="內容..."
-                style="width:100%;height:150px;background:var(--input-bg);border:1px solid var(--border-color);padding:12px;color:var(--text-main);resize:none;box-sizing:border-box;border-radius:8px;"></textarea><button
-                class="btn-modal btn-confirm" style="width:100%;margin-top:20px;" onclick="submitNote()">儲存</button>
-        </div>
-    </div>
-
     <div id="launcher">
+        <a class="app-icon-card" href="/projects" style="text-decoration:none;color:inherit"><i class="fa-solid fa-layer-group"></i><span>工作空間 / Today</span></a>
         <div class="app-icon-card" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></div>
         <div class="app-icon-card" onclick="openApp('drive')"><i
                 class="fa-brands fa-google-drive"></i><span>Drive</span></div>
@@ -578,12 +52,13 @@
         <div class="app-icon-card" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i><span>Tasks</span>
         </div>
         <div class="app-icon-card" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i><span>Money</span></div>
-        <div class="app-icon-card" onclick="openApp('chat')"><i class="fa-solid fa-comments"></i><span>Chat</span></div>
+        <div class="app-icon-card" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i><span>Keep</span></div>
         <div class="app-icon-card" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
         <div class="app-icon-card" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i><span>Quiz</span></div>
     </div>
 
     <nav id="sidebar">
+        <a class="nav-item" href="/projects" title="工作空間 / Today"><i class="fa-solid fa-layer-group"></i></a>
         <div class="nav-item" id="nav-music" onclick="openApp('music')"><i class="fa-solid fa-music"></i></div>
         <div class="nav-item" id="nav-drive" onclick="openApp('drive')"><i class="fa-brands fa-google-drive"></i></div>
         <div class="nav-item" id="nav-notes" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i></div>
@@ -591,7 +66,7 @@
         </div>
         <div class="nav-item" id="nav-tasks" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i></div>
         <div class="nav-item" id="nav-money" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i></div>
-        <div class="nav-item" id="nav-chat" onclick="openApp('chat')"><i class="fa-solid fa-comments"></i></div>
+        <div class="nav-item" id="nav-chat" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i></div>
         <div class="nav-item" id="nav-settings" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i></div>
         <div class="nav-item" id="nav-quiz" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i></div>
         <div class="nav-item home-btn" onclick="goHome()"><i class="fa-solid fa-th-large"></i></div>
@@ -609,21 +84,23 @@
         {% include 'partials/quiz.html' %}
     </main>
 
-    <script src="/static/js/drive.js?v=4001"></script>
-    <script src="/static/js/music.js?v=4001"></script>
-    <script src="/static/js/calendar.js?v=4001"></script>
-    <script src="/static/js/notes.js?v=4001"></script>
-    <script src="/static/js/tasks.js?v=4001"></script>
-    <script src="/static/js/money.js?v=4001"></script>
-    <script src="/static/js/chat.js?v=4001"></script>
+    <script src="/static/js/ui.js?v=5000"></script>
+    <script src="/static/js/drive.js?v=6001"></script>
+    <script src="/static/js/music.js?v=7000"></script>
+    <script src="/static/js/calendar.js?v=6001"></script>
+    <script src="/static/js/notes.js?v=5000"></script>
+    <script src="/static/js/tasks.js?v=7001"></script>
+    <script src="/static/js/money.js?v=7000"></script>
+    <script src="/static/js/chat.js?v=5000"></script>
     <script src="/static/js/settings.js?v=4001"></script>
+    <script src="/static/js/quiz.js?v=4002"></script>
 
     <script>
         let confirmCallback = null;
         let isGuest = false;
         function showConfirmModal(title, desc, cb) { document.getElementById('modal-title').innerText = title; document.getElementById('modal-desc').innerText = desc; confirmCallback = cb; document.getElementById('confirm-modal').style.display = 'flex'; }
         function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; confirmCallback = null; }
-        document.getElementById('modal-confirm-btn').onclick = () => { if (confirmCallback) confirmCallback(); closeModal(); };
+        document.getElementById('modal-confirm-btn').onclick = async () => { const button=document.getElementById('modal-confirm-btn'); if(button.disabled)return;button.disabled=true;try { if(confirmCallback)await confirmCallback();closeModal(); } catch(error){FlowUI.error(error);} finally{button.disabled=false;} };
 
         let alertCallback = null;
         function showAlert(title, desc, cb = null) {
@@ -678,12 +155,26 @@
                 const res = await fetch('/api/auth/user');
                 const data = await res.json();
 
-                let html = data.logged_in ?
-                    `<div class="user-badge" onclick="logout()"><img src="${data.info.picture}"><span>${data.info.name}</span></div>` :
-                    `<div style="display:flex; gap:10px;">
+                isGuest = !!data.is_guest;
+
+                let html;
+                if (data.logged_in) {
+                    html = `<div class="user-badge" onclick="logout()"><img src="${data.info.picture}"><span>${data.info.name}</span></div>`;
+                } else if (data.reauth_required) {
+                    // Google 授權真的失效了（token 被撤銷/過期），跟單純沒登入分開講，才知道要重新走一次 Google 登入
+                    html = `<div style="display:flex; gap:10px;">
+                        <button class="btn-tool" style="width:auto;padding:0 15px;background:var(--accent);color:white;" onclick="checkLogin(true)" title="Google 授權已過期，請重新登入">重新登入 Google</button>
+                        <button class="btn-tool" style="width:auto;padding:0 15px; background:var(--input-bg); color:var(--text-sub);" onclick="location.href='/api/auth/guest'">訪客試用</button>
+                    </div>`;
+                } else if (data.error) {
+                    // 暫時性錯誤（例如連不到 Google API），不是登入失效，不該直接推使用者去重新登入
+                    html = `<span style="font-size:0.85rem;color:var(--text-sub);">連線不穩，<a href="javascript:void(0)" onclick="updateAllUserStatus()" style="color:var(--accent);">重試</a></span>`;
+                } else {
+                    html = `<div style="display:flex; gap:10px;">
                         <button class="btn-tool" style="width:auto;padding:0 15px;" onclick="checkLogin(true)">Google 登入</button>
                         <button class="btn-tool" style="width:auto;padding:0 15px; background:var(--input-bg); color:var(--text-sub);" onclick="location.href='/api/auth/guest'">訪客試用</button>
                     </div>`;
+                }
 
                 document.querySelectorAll('.user-placeholder').forEach(el => el.innerHTML = html);
 
@@ -732,6 +223,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             updateAllUserStatus();
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+
+            const merged = new URLSearchParams(location.search).get('guest_merged');
+            if (merged) {
+                showAlert('資料已轉移', `已將訪客模式下的 ${merged} 筆資料轉移到你的帳號`);
+                history.replaceState(null, '', location.pathname);
+            }
         });
 
         var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.body.appendChild(tag);

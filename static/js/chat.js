@@ -1,179 +1,85 @@
-let ws;
-
-if (!window.QRCode) {
-    const script = document.createElement('script');
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
-    document.head.appendChild(script);
-}
-
-document.addEventListener('DOMContentLoaded', initChat);
-
-function initChat() {
-    loadChatHistory();
-    connectWebSocket();
-}
-
+let ws, chatCursor = null, chatRetry = 0, sendingChat = false;
+if (!window.QRCode) { const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; document.head.append(script); }
+document.addEventListener('DOMContentLoaded', () => { loadChatHistory(); connectWebSocket(); });
 function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${protocol}://${window.location.host}/api/chat/ws`);
-    ws.onmessage = (event) => {
-        const payload = JSON.parse(event.data);
-        if (payload.type === 'new_message') renderMessage(payload.data);
-        else if (payload.type === 'system' && payload.action === 'reload') loadChatHistory();
+    ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/chat/ws`);
+    ws.onopen = () => { chatRetry = 0; };
+    ws.onmessage = event => {
+        const p = JSON.parse(event.data);
+        if (p.type === 'new_message' || p.type === 'edit') renderMessage(p.data);
+        else if (p.type === 'delete') handleWsDelete(p.data.id);
+        else if (p.type === 'clear') loadChatHistory();
     };
-    ws.onclose = () => setTimeout(connectWebSocket, 3000);
+    ws.onclose = event => { if (![4401,4403].includes(event.code)) setTimeout(connectWebSocket, Math.min(30000, 3000 * 2 ** chatRetry++)); };
 }
-
-async function loadChatHistory() {
+async function loadChatHistory(older = false) {
     try {
-        const res = await fetch('/api/chat/history');
-        const data = await res.json();
-        const container = document.getElementById('chat-messages');
-        container.innerHTML = '';
-
-        if (data.messages && data.messages.length > 0) {
-            data.messages.forEach(msg => renderMessage(msg, false));
-            scrollToBottom();
-        } else {
-            // ★ 修改：使用新的空狀態結構 ★
-            container.innerHTML = `
-                <div class="chat-empty-state">
-                    <div class="chat-empty-content">
-                        <div class="empty-icon"><i class="fa-solid fa-paper-plane"></i></div>
-                        <div class="empty-text">跨裝置傳送門</div>
-                        <div class="empty-sub">手機掃描 QR Code，即刻傳送文字與圖片</div>
-                        <button class="empty-btn" onclick="showQrCode()">
-                            <i class="fa-solid fa-qrcode"></i> 手機連線
-                        </button>
-                    </div>
-                </div>`;
-        }
-    } catch (e) { }
+        const data = await FlowUI.request('/api/chat/history' + (older && chatCursor ? '?before=' + encodeURIComponent(chatCursor) : ''));
+        const box = document.getElementById('chat-messages');
+        if (!older) box.replaceChildren();
+        const fragment = document.createDocumentFragment();
+        for (const msg of data.messages) if (!findMessage(msg.id)) fragment.append(buildMessageNode(msg));
+        if (older) box.prepend(fragment); else box.append(fragment);
+        chatCursor = data.next_cursor;
+        document.getElementById('keep-older').hidden = !chatCursor;
+        if (!box.children.length) renderEmptyState();
+        if (!older) scrollToBottom();
+    } catch(error) { FlowUI.error(error); }
 }
-
+function findMessage(id) { return [...document.querySelectorAll('.msg-wrapper')].find(node => node.dataset.msgId === id); }
+function renderEmptyState() {
+    const box = document.getElementById('chat-messages'); box.replaceChildren(FlowUI.node('p', '我的隨手記 · 記下文字、連結或檔案。', 'chat-empty-state'));
+}
+function buildMessageNode(msg) {
+    const wrapper = FlowUI.node('div', null, 'msg-wrapper'); wrapper.dataset.msgId = msg.id;
+    const actions = FlowUI.node('div', null, 'msg-actions');
+    const action = (label, fn) => { const button = FlowUI.node('button', label, 'msg-btn'); button.onclick = fn; actions.append(button); };
+    if (['text','link'].includes(msg.type)) action('編輯', () => openEditChatModal(msg.id, msg.content));
+    action('刪除', () => deleteMessage(msg.id));
+    const bubble = FlowUI.node('div', null, 'msg-bubble ' + (msg.type === 'text' ? 'text-card' : 'link-card'));
+    const url = FlowUI.url(msg.content);
+    if (['image','file','link'].includes(msg.type) && url) {
+        const link = FlowUI.node('a', msg.type === 'image' ? '' : (msg.file_name || msg.content));
+        link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        if (msg.type === 'image') { const image = FlowUI.node('img'); image.src = url; image.alt = msg.file_name || '圖片'; image.className = 'chat-image'; link.append(image); }
+        bubble.append(link);
+    } else bubble.textContent = msg.content;
+    const copy = FlowUI.node('button', '複製', 'msg-btn');
+    copy.onclick = async () => { try { await navigator.clipboard.writeText(msg.content); copy.textContent = '已複製'; } catch(error) { FlowUI.error(error); } };
+    actions.append(copy); wrapper.append(actions, bubble, FlowUI.node('div', msg.time, 'msg-time')); return wrapper;
+}
+function renderMessage(msg) {
+    const old = findMessage(msg.id);
+    if (old) old.replaceWith(buildMessageNode(msg));
+    else { document.querySelector('.chat-empty-state')?.remove(); document.getElementById('chat-messages').append(buildMessageNode(msg)); }
+    scrollToBottom();
+}
+function handleWsDelete(id) { findMessage(id)?.remove(); }
+function scrollToBottom() { const box = document.getElementById('chat-messages'); box.scrollTop = box.scrollHeight; }
 async function sendChat() {
-    const input = document.getElementById('chat-input');
-    const content = input.value.trim();
-    if (!content) return;
-    input.value = '';
-
-    // 按鈕特效
-    const btn = document.querySelector('.btn-send');
-    btn.style.transform = "scale(0.9)";
-    setTimeout(() => btn.style.transform = "scale(1)", 150);
-
-    await fetch(`/api/chat/send?content=${encodeURIComponent(content)}`, { method: 'POST' });
+    const input = document.getElementById('chat-input'); const content = input.value;
+    if (sendingChat || !content.trim()) return;
+    sendingChat = true;
+    try { const form = new FormData(); form.append('content', content); const data = await FlowUI.request('/api/chat/send', {method:'POST',body:form}); if (input.value === content) input.value = ''; renderMessage(data.message); }
+    catch(error) { FlowUI.error(error); } finally { sendingChat = false; }
 }
-
-function renderMessage(msg, autoScroll = true) {
-    const container = document.getElementById('chat-messages');
-
-    // 如果有空狀態元素，移除它
-    const emptyState = container.querySelector('.chat-empty-state');
-    if (emptyState) emptyState.remove();
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'msg-wrapper';
-
-    let contentHtml = '';
-    let bubbleClass = 'msg-bubble';
-
-    // 1. 圖片
-    if (msg.type === 'image') {
-        bubbleClass += ' image-card';
-        contentHtml = `<a href="${msg.content}" target="_blank"><img src="${msg.content}" class="chat-image" onload="scrollToBottom()"></a>`;
-    }
-    // 2. YouTube 影片
-    else if (getYTVideoId(msg.content)) {
-        bubbleClass += ' video-card';
-        const ytId = getYTVideoId(msg.content);
-        contentHtml = `
-            <img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" class="yt-thumbnail">
-            <i class="fa-solid fa-circle-play play-icon"></i>
-        `;
-        wrapper.onclick = (e) => { if (!e.target.closest('.msg-actions')) window.open(msg.content, '_blank'); };
-    }
-    // 3. 連結
-    else if (msg.type === 'link') {
-        bubbleClass += ' link-card';
-        const imgHtml = msg.meta && msg.meta.image ? `<img src="${msg.meta.image}" style="width:40px; height:40px; border-radius:4px; object-fit:cover;">` : '<i class="fa-solid fa-link" style="font-size:1.5rem;"></i>';
-        const title = msg.meta ? msg.meta.title : msg.content;
-        let domain = '';
-        try { domain = new URL(msg.content).hostname; } catch (e) { }
-
-        contentHtml = `
-            ${imgHtml}
-            <div style="flex:1; overflow:hidden;">
-                <div style="font-weight:bold; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
-                <div class="link-domain">${domain}</div>
-            </div>
-            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.9rem; opacity:0.5;"></i>`;
-
-        wrapper.onclick = (e) => { if (!e.target.closest('.msg-actions')) window.open(msg.content, '_blank'); };
-    }
-    // 4. 文字
-    else {
-        bubbleClass += ' text-card';
-        contentHtml = `${msg.content}`;
-        // 複製按鈕
-        wrapper.innerHTML += `<button class="copy-btn" onclick="copyToClipboard('${encodeURIComponent(msg.content)}', this)" title="複製"><i class="fa-regular fa-copy"></i></button>`;
-    }
-
-    const encodedContent = encodeURIComponent(msg.content);
-
-    // 組合 HTML
-    const inner = `
-        <div class="msg-actions">
-            <button class="msg-btn" onclick="openEditChatModal('${msg.id}', '${encodedContent}')"><i class="fa-solid fa-pen"></i></button>
-            <button class="msg-btn del" onclick="deleteMessage('${msg.id}')"><i class="fa-solid fa-trash"></i></button>
-        </div>
-        <div class="${bubbleClass}">
-            ${contentHtml}
-        </div>
-        <div class="msg-time">${msg.time}</div>
-    `;
-
-    if (msg.type === 'text') wrapper.innerHTML += inner; // 文字的複製按鈕已加，直接 append inner
-    else wrapper.innerHTML = inner;
-
-    container.appendChild(wrapper);
-    if (autoScroll) scrollToBottom();
+function triggerFileUpload() { document.getElementById('chat-file-input').click(); }
+async function onFileSelected(input) {
+    if (!input.files[0]) return;
+    try { const form = new FormData(); form.append('file',input.files[0]); const data = await FlowUI.request('/api/chat/upload',{method:'POST',body:form}); input.value=''; renderMessage(data.message); }
+    catch(error) { FlowUI.error(error); }
 }
-
-function getYTVideoId(url) {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+function openEditChatModal(id, content) { document.getElementById('edit-msg-id').value=id; document.getElementById('edit-msg-content').value=content; document.getElementById('edit-chat-modal').style.display='flex'; }
+function closeEditChatModal() { document.getElementById('edit-chat-modal').style.display='none'; }
+async function submitEditChat() {
+    try { const form=new FormData(); form.append('msg_id',document.getElementById('edit-msg-id').value); form.append('new_content',document.getElementById('edit-msg-content').value); await FlowUI.request('/api/chat/edit',{method:'POST',body:form}); closeEditChatModal(); await loadChatHistory(); }
+    catch(error) { FlowUI.error(error); }
 }
-
-function scrollToBottom() {
-    const container = document.getElementById('chat-messages');
-    container.scrollTop = container.scrollHeight;
-}
-
-function copyToClipboard(text, btn) {
-    const decoded = decodeURIComponent(text);
-    navigator.clipboard.writeText(decoded).then(() => {
-        const icon = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check" style="color:var(--accent);"></i>';
-        setTimeout(() => btn.innerHTML = icon, 1500);
-    });
-}
+function deleteMessage(id) { showConfirmModal('刪除','確定刪除這筆紀錄？',async()=>{ try { const form=new FormData(); form.append('msg_id',id); await FlowUI.request('/api/chat/delete',{method:'POST',body:form}); handleWsDelete(id); } catch(error) { FlowUI.error(error); } }); }
+function clearAllChat() { showConfirmModal('清空紀錄','此操作會刪除所有 Keep 紀錄。',async()=>{ try { await FlowUI.request('/api/chat/clear',{method:'POST'}); await loadChatHistory(); } catch(error) { FlowUI.error(error); } }); }
 async function showQrCode() {
-    const modal = document.getElementById('qr-modal');
-    const container = document.getElementById('qrcode-container');
-    container.innerHTML = '<p style="color:#000;">取得 IP...</p>';
-    modal.style.display = 'flex';
-    try {
-        const res = await fetch('/api/chat/ip'); const data = await res.json();
-        container.innerHTML = '';
-        new QRCode(container, { text: data.url, width: 170, height: 170, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
-        document.getElementById('qr-ip-text').innerText = data.url;
-    } catch (e) { container.innerHTML = '失敗'; }
+    document.getElementById('qr-modal').style.display='flex'; const box=document.getElementById('qrcode-container'); box.textContent='產生連結中…';
+    try { const data=await FlowUI.request('/api/auth/device-link'); box.replaceChildren(); if (!window.QRCode) throw new Error('QR Code 元件尚未載入'); new QRCode(box,{text:data.url,width:170,height:170}); }
+    catch(error) { box.textContent=error.message; }
 }
-function closeQrModal() { document.getElementById('qr-modal').style.display = 'none'; }
-async function deleteMessage(id) { showConfirmModal('刪除', '確定刪除？', async () => { const fd = new FormData(); fd.append('msg_id', id); await fetch('/api/chat/delete', { method: 'POST', body: fd }); }); }
-async function clearAllChat() { showConfirmModal('清空', '刪除所有紀錄？', async () => { await fetch('/api/chat/clear', { method: 'POST' }); }); }
-function openEditChatModal(id, content) { document.getElementById('edit-msg-id').value = id; document.getElementById('edit-msg-content').value = decodeURIComponent(content); document.getElementById('edit-chat-modal').style.display = 'flex'; }
-function closeEditChatModal() { document.getElementById('edit-chat-modal').style.display = 'none'; }
-async function submitEditChat() { const id = document.getElementById('edit-msg-id').value; const content = document.getElementById('edit-msg-content').value; if (!content.trim()) return; const fd = new FormData(); fd.append('msg_id', id); fd.append('new_content', content); await fetch('/api/chat/edit', { method: 'POST', body: fd }); closeEditChatModal(); }
+function closeQrModal() { document.getElementById('qr-modal').style.display='none'; }

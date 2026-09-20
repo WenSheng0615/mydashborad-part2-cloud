@@ -16,20 +16,28 @@ def init_firebase():
     key_path = os.getenv("FIREBASE_KEY_FILE")
     bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
     
-    if key_path and os.path.exists(key_path):
+    if not key_path or not bucket_name or not os.path.isfile(key_path):
+        return False
+    try:
         cred = credentials.Certificate(key_path)
-        firebase_admin.initialize_app(cred, {
-            'storageBucket': bucket_name
-        })
-        print(f"🔥 Firebase 成功初始化，儲存桶：{bucket_name}")
-    else:
-        print("⚠️ 找不到 Firebase 金鑰檔案，略過初始化。")
+        firebase_admin.initialize_app(cred, {'storageBucket': bucket_name})
+        return True  # Configuration loaded, not a remote availability check.
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("Optional attachment storage unavailable; Core remains enabled")
+        return False
+
+def file_reference(destination_blob_name):
+    from urllib.parse import quote
+    return "/api/files/download?object=" + quote(destination_blob_name, safe="")
 
 def upload_file(file_path, destination_blob_name):
-    """將本地檔案上傳到 Firebase Storage"""
     bucket = storage.bucket()
     blob = bucket.blob(destination_blob_name)
     blob.upload_from_filename(file_path)
-    # 產生一個有效期限為 10 年的下載連結
-    url = blob.generate_signed_url(expiration=timedelta(days=3650))
-    return url
+    return file_reference(destination_blob_name)
+
+def signed_download(destination_blob_name):
+    blob = storage.bucket().blob(destination_blob_name)
+    return blob.generate_signed_url(version="v4", expiration=timedelta(minutes=15),
+                                    response_disposition="attachment")

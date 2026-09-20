@@ -1,6 +1,6 @@
 <div id="view-chat" class="app-view">
     <div class="app-header">
-        <h1 class="app-title"><i class="fa-solid fa-comments"></i> Chat</h1>
+        <h1 class="app-title"><i class="fa-solid fa-inbox"></i> Keep</h1>
         <div style="display:flex; align-items:center; gap:10px;">
             <button class="btn-tool" onclick="showQrCode()" title="手機連線">
                 <i class="fa-solid fa-qrcode"></i>
@@ -16,9 +16,14 @@
 
     <div class="chat-container">
 
+        <button id="keep-older" class="btn-tool" style="width:auto" hidden onclick="loadChatHistory(true)">載入更早紀錄</button>
         <div id="chat-messages" class="chat-messages"></div>
 
         <div class="chat-input-area">
+            <input type="file" id="chat-file-input" style="display:none;" onchange="onFileSelected(this)">
+            <button class="btn-send" style="background:var(--input-bg);color:var(--text-sub);box-shadow:none;" onclick="triggerFileUpload()" title="傳送圖片或檔案">
+                <i class="fa-solid fa-paperclip"></i>
+            </button>
             <input type="text" id="chat-input" class="chat-input" placeholder="輸入訊息或貼上網址..."
                 onkeyup="if(event.key==='Enter') sendChat()">
             <button class="btn-send" onclick="sendChat()">
@@ -47,9 +52,9 @@
                 style="background:white; padding:15px; border-radius:10px; margin:20px auto; width:200px; height:200px; display:flex; justify-content:center; align-items:center;">
             </div>
             <p id="qr-ip-text"
-                style="color:var(--accent); font-weight:bold; font-family:monospace; background:var(--bg-input); padding:5px; border-radius:4px; margin-bottom:10px; word-break:break-all;">
+                style="color:var(--accent); font-weight:bold; background:var(--bg-input); padding:8px; border-radius:4px; margin-bottom:10px;">
             </p>
-            <p style="color:var(--text-sub); font-size:0.9rem;">請確保手機與電腦在同一 Wi-Fi</p>
+            <p style="color:var(--text-sub); font-size:0.9rem;">連結 5 分鐘內有效，掃過一次就會失效，請勿分享給別人</p>
             <button class="btn-modal btn-cancel" onclick="closeQrModal()"
                 style="width:100%; margin-top:10px;">關閉</button>
         </div>

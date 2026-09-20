@@ -1,0 +1,25 @@
+/* Shared controls; layout and specialized players remain feature-owned. */
+body { font-family: var(--font-ui); }
+button, input, textarea, select { font-family: inherit; }
+button { transition: background-color .15s, border-color .15s, color .15s; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+}
+.btn-tool, .btn-modal, .custom-select, .primary { border-radius: var(--radius-control); }
+.btn-modal, .primary { min-height: 38px; font-size: 14px; font-weight: 600; }
+.btn-confirm, .primary { background: var(--accent); color: var(--on-accent); }
+.modal-box, dialog { border-radius: var(--radius-dialog); }
+.note, .note-card, .stat-grid, .list { border-radius: var(--radius-card); }
+/* Categorical note colors stay as an edge marker, not a separate dark-only theme. */
+.notes-grid .note-card, .notes-list .note-card {
+    background-color: var(--card-bg) !important;
+    color: var(--text-main); border-top-color: var(--border-color);
+    border-right-color: var(--border-color); border-bottom-color: var(--border-color);
+}
+.note-footer { border-top-color: var(--border-color); }
+.note-time { color: var(--text-sub); opacity: 1; }
+.note-del-btn { color: var(--text-sub); }
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

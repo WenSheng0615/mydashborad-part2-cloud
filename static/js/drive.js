@@ -52,7 +52,7 @@ async function loadFiles(fid = 'root', q = '', type = '') {
     // 更新路徑顯示
     const pathEl = document.getElementById('current-path');
     if (pathEl) {
-        pathEl.innerHTML = `<i class="fa-solid fa-folder-tree"></i> ${fid === 'root' ? 'Root' : fid}`;
+        pathEl.textContent = fid === 'root' ? 'Root' : fid;
         pathEl.style.cursor = "pointer";
         pathEl.onclick = () => {
             navigator.clipboard.writeText(fid);
@@ -61,8 +61,8 @@ async function loadFiles(fid = 'root', q = '', type = '') {
     }
 
     try {
-        const res = await fetch(`/api/drive/files?folder_id=${fid}&query=${q}&file_type=${type}`);
-        const data = await res.json();
+        const params = new URLSearchParams({folder_id: fid, query: q, file_type: type});
+        const data = await FlowUI.request(`/api/drive/files?${params}`);
 
         if (data.error && data.error.includes("Login")) {
             c.innerHTML = `<div style="text-align:center; padding:50px;"><p>請先登入 Google</p></div>`;
@@ -79,50 +79,46 @@ async function loadFiles(fid = 'root', q = '', type = '') {
 }
 
 function renderFiles(files) {
-    const c = document.getElementById('file-container');
-    let html = '';
-    files.forEach((f, idx) => {
-        const iconUrl = getIconUrl(f.mimeType, f.name);
-        html += `
-            <div class="file-card" id="file-${idx}" onclick="selectFile(${idx}, event)" ondblclick="dblClick(${idx})">
-                <div class="file-icon-area"><img src="${iconUrl}" class="file-icon"></div>
-                <div class="file-info"><div class="file-name" title="${f.name}">${f.name}</div></div>
-            </div>`;
+    const container = document.getElementById('file-container');
+    container.replaceChildren();
+    files.forEach((file, index) => {
+        const card = FlowUI.node('div', null, 'file-card'); card.id = `file-${index}`;
+        card.onclick = event => selectFile(index, event); card.ondblclick = () => dblClick(index);
+        const iconBox = FlowUI.node('div', null, 'file-icon-area');
+        const icon = FlowUI.node('img', null, 'file-icon'); icon.src = getIconUrl(file.mimeType, file.name); icon.alt = '';
+        iconBox.append(icon);
+        const info = FlowUI.node('div', null, 'file-info');
+        const name = FlowUI.node('div', file.name, 'file-name'); name.title = file.name; info.append(name);
+        card.append(iconBox, info); container.append(card);
     });
-    c.innerHTML = html;
 }
 
-function selectFile(idx, event) {
+function selectFile(index, event) {
     if (event) event.stopPropagation();
     document.querySelectorAll('.file-card').forEach(el => el.classList.remove('selected'));
-    document.getElementById(`file-${idx}`).classList.add('selected');
-
-    const f = currentFilesData[idx];
-    currentSelectedFileId = f.id;
-    currentSelectedFileName = f.name;
-    
-    let preview = f.thumbnailLink ?
-        `<img src="${f.thumbnailLink.replace('s220', 's600')}" referrerpolicy="no-referrer">` :
-        `<img src="${getIconUrl(f.mimeType, f.name)}" style="width:120px; height:120px; object-fit:contain;">`;
-
-    document.getElementById('preview-area').innerHTML = `
-        <div class="preview-content">
-            <div class="preview-image-box">${preview}</div>
-            <div class="preview-header">${f.name}</div>
-            <div class="preview-details" style="flex:1;">
-                <div class="detail-row"><span class="detail-label">修改</span><span class="detail-value">${new Date(f.modifiedTime).toLocaleDateString()}</span></div>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn-preview-action btn-primary" onclick="window.open('${f.webViewLink}','_blank')">開啟</button>
-                <button class="btn-preview-action btn-secondary" onclick="deleteFile('${f.id}', event)">刪除</button>
-            </div>
-        </div>`;
+    document.getElementById(`file-${index}`).classList.add('selected');
+    const file = currentFilesData[index];
+    currentSelectedFileId = file.id; currentSelectedFileName = file.name;
+    const content = FlowUI.node('div', null, 'preview-content');
+    const box = FlowUI.node('div', null, 'preview-image-box');
+    const image = FlowUI.node('img'); image.alt = file.name;
+    image.src = FlowUI.url(file.thumbnailLink || getIconUrl(file.mimeType, file.name));
+    image.referrerPolicy = 'no-referrer'; box.append(image);
+    const buttons = FlowUI.node('div');
+    const open = FlowUI.node('button', '開啟', 'btn-preview-action btn-primary');
+    const url = FlowUI.url(file.webViewLink); open.disabled = !url;
+    open.onclick = () => window.open(url, '_blank', 'noopener,noreferrer');
+    const remove = FlowUI.node('button', '移至回收桶', 'btn-preview-action btn-secondary');
+    remove.onclick = event => deleteFile(file.id, event); buttons.append(open, remove);
+    content.append(box, FlowUI.node('div', file.name, 'preview-header'),
+        FlowUI.node('div', `修改：${new Date(file.modifiedTime).toLocaleDateString()}`, 'preview-details'), buttons);
+    document.getElementById('preview-area').replaceChildren(content);
 }
 
 function dblClick(idx) {
     const f = currentFilesData[idx];
     if (f.mimeType.includes('folder')) { folderStack.push(currentFolderId); loadFiles(f.id); }
-    else window.open(f.webViewLink, '_blank');
+    else { const url = FlowUI.url(f.webViewLink); if (url) window.open(url, '_blank', 'noopener,noreferrer'); }
 }
 
 function goUpFolder() { if (folderStack.length) loadFiles(folderStack.pop()); else loadFiles('root'); }
@@ -134,20 +130,26 @@ async function uploadFile() {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('folder_id', currentFolderId);
-    try { await fetch('/api/drive/upload', { method: 'POST', body: fd }); } catch (e) { showAlert("錯誤", "上傳失敗"); }
-    fileInput.value = '';
-    loadFiles(currentFolderId);
+    try {
+        await FlowUI.request('/api/drive/upload', { method: 'POST', body: fd });
+        fileInput.value = ''; await loadFiles(currentFolderId);
+    } catch (error) { FlowUI.error(error); }
 }
 
 async function deleteFile(fileId, event) {
     if (event) event.stopPropagation();
-    showConfirmModal('刪除檔案', '確定要永久刪除此檔案嗎？', async () => {
+    showConfirmModal('移至回收桶', '檔案將移至 Google Drive 回收桶，可至 Google Drive 還原。是否繼續？', async () => {
         const c = document.getElementById('file-container');
         c.style.opacity = '0.5';
         const fd = new FormData();
         fd.append('file_id', fileId);
-        await fetch('/api/drive/delete', { method: 'POST', body: fd });
-        loadFiles(currentFolderId);
+        try {
+            await FlowUI.request('/api/drive/delete', { method: 'POST', body: fd });
+            document.getElementById('preview-area').replaceChildren();
+            currentSelectedFileId = null; currentSelectedFileName = '';
+            await loadFiles(currentFolderId);
+        } catch (error) { FlowUI.error(error); }
+        finally { c.style.opacity = '1'; }
     });
 }
 

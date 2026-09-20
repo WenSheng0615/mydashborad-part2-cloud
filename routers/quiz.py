@@ -1,3 +1,5 @@
+from fastapi import HTTPException
+from services.upload_service import bounded_upload
 import uuid
 import json
 import random
@@ -13,6 +15,18 @@ def _require_user(request: Request):
     if not session_id:
         return None
     return get_session_info(session_id)
+
+
+def _get_owned_bank(db, bank_id, user_email):
+    return db.query(QuizBank).filter(QuizBank.id == bank_id, QuizBank.user_email == user_email).first()
+
+
+def _get_owned_question(db, question_id, user_email):
+    q = db.query(QuizQuestion).filter(QuizQuestion.id == question_id).first()
+    if not q:
+        return None
+    bank = db.query(QuizBank).filter(QuizBank.id == q.bank_id, QuizBank.user_email == user_email).first()
+    return q if bank else None
 
 
 # ── 題庫 CRUD ──────────────────────────────────────────
@@ -92,6 +106,9 @@ async def list_questions(request: Request, bank_id: str):
     if not session:
         return JSONResponse({"questions": []})
     db = get_db()
+    if not _get_owned_bank(db, bank_id, session.user_email):
+        db.close()
+        return JSONResponse({"questions": []})
     questions = db.query(QuizQuestion).filter(QuizQuestion.bank_id == bank_id).order_by(QuizQuestion.created_at.asc()).all()
     result = []
     for q in questions:
@@ -122,6 +139,9 @@ async def add_question(request: Request):
         return JSONResponse({"status": "invalid"}, 400)
 
     db = get_db()
+    if not _get_owned_bank(db, bank_id, session.user_email):
+        db.close()
+        return JSONResponse({"status": "not_found"}, 404)
     q = QuizQuestion(
         id=str(uuid.uuid4()),
         bank_id=bank_id,
@@ -157,7 +177,7 @@ async def edit_question(request: Request):
         return JSONResponse({"status": "invalid"}, 400)
 
     db = get_db()
-    q = db.query(QuizQuestion).filter(QuizQuestion.id == question_id).first()
+    q = _get_owned_question(db, question_id, session.user_email)
     if not q:
         db.close()
         return JSONResponse({"status": "not_found"}, 404)
@@ -183,6 +203,10 @@ async def delete_question(request: Request, question_id: str = Form(...)):
     if not session:
         return JSONResponse({"status": "unauthorized"}, 401)
     db = get_db()
+    q = _get_owned_question(db, question_id, session.user_email)
+    if not q:
+        db.close()
+        return JSONResponse({"status": "not_found"}, 404)
     db.query(QuizOption).filter(QuizOption.question_id == question_id).delete()
     db.query(QuizQuestion).filter(QuizQuestion.id == question_id).delete()
     db.commit()
@@ -198,6 +222,9 @@ async def list_tags(request: Request, bank_id: str):
     if not session:
         return JSONResponse({"tags": []})
     db = get_db()
+    if not _get_owned_bank(db, bank_id, session.user_email):
+        db.close()
+        return JSONResponse({"tags": []})
     questions = db.query(QuizQuestion).filter(QuizQuestion.bank_id == bank_id).all()
     counts = {}
     for q in questions:
@@ -216,6 +243,9 @@ async def get_practice(request: Request, bank_id: str, tags: str = None):
     if not session:
         return JSONResponse({"questions": []})
     db = get_db()
+    if not _get_owned_bank(db, bank_id, session.user_email):
+        db.close()
+        return JSONResponse({"questions": []})
     questions = db.query(QuizQuestion).filter(QuizQuestion.bank_id == bank_id).all()
     if tags:
         tag_list = set(tags.split(","))
@@ -240,15 +270,42 @@ async def import_questions(request: Request, bank_id: str = Form(...), file: Upl
         return JSONResponse({"status": "unauthorized"}, 401)
 
     try:
-        raw = await file.read()
+        async with bounded_upload(file) as (path, size, name, suffix):
+            raw = path.read_bytes()
         items = json.loads(raw.decode("utf-8-sig"))
+    except HTTPException:
+        raise
     except Exception:
         return JSONResponse({"status": "invalid_json"}, 400)
 
     if not isinstance(items, list):
         return JSONResponse({"status": "invalid_json"}, 400)
 
+    if len(items) > 1000:
+        raise HTTPException(413, "一次最多匯入 1000 題")
+    # Validate the entire payload before opening a write transaction.
+    for item in items:
+        if not isinstance(item, dict):
+            raise HTTPException(422, "每題必須是 JSON 物件")
+        for key, limit in (("name", 10000), ("tag", 200), ("type", 30)):
+            value = item.get(key)
+            if value is not None and (not isinstance(value, str) or len(value) > limit):
+                raise HTTPException(422, "題目文字或標籤格式不正確／過長")
+        options = item.get("options")
+        if options is not None:
+            if not isinstance(options, (dict, list)) or len(options) > 20:
+                raise HTTPException(422, "選項必須為物件或陣列，最多 20 個")
+            values = options.values() if isinstance(options, dict) else options
+            if any(not isinstance(v, str) or len(v) > 5000 for v in values):
+                raise HTTPException(422, "選項必須是最多 5000 字的文字")
+        answers = item.get("answers", [])
+        if not isinstance(answers, list) or any(not isinstance(v, str) for v in answers):
+            raise HTTPException(422, "答案必須是文字陣列")
+
     db = get_db()
+    if not _get_owned_bank(db, bank_id, session.user_email):
+        db.close()
+        return JSONResponse({"status": "not_found"}, 404)
     added = 0
     updated = 0
     skipped = 0
@@ -419,6 +476,9 @@ async def get_exam_questions(request: Request, bank_id: str, count: int = 10, ta
     if not session:
         return JSONResponse({"questions": []})
     db = get_db()
+    if not _get_owned_bank(db, bank_id, session.user_email):
+        db.close()
+        return JSONResponse({"questions": []})
     questions = db.query(QuizQuestion).filter(QuizQuestion.bank_id == bank_id).all()
     if tags:
         tag_list = set(tags.split(","))
@@ -428,7 +488,8 @@ async def get_exam_questions(request: Request, bank_id: str, count: int = 10, ta
     result = []
     for q in questions:
         options = db.query(QuizOption).filter(QuizOption.question_id == q.id).all()
-        opts = [{"id": o.id, "text": o.text, "is_correct": o.is_correct} for o in options]
+        # ⚠️ 測驗模式不回傳 is_correct，避免前端直接看到答案
+        opts = [{"id": o.id, "text": o.text} for o in options]
         random.shuffle(opts)
         result.append({"id": q.id, "content": q.content, "type": q.type, "options": opts})
     db.close()
@@ -441,46 +502,60 @@ async def submit_exam(request: Request):
         return JSONResponse({"status": "unauthorized"}, 401)
     body = await request.json()
     bank_id = body.get("bank_id")
-    answers = body.get("answers", [])  # [{question_id, content, type, options, selected}]
+    answers = body.get("answers", [])  # [{question_id, selected}]
 
     db = get_db()
-    bank = db.query(QuizBank).filter(QuizBank.id == bank_id).first()
-    bank_name = bank.name if bank else "未知題庫"
+    bank = _get_owned_bank(db, bank_id, session.user_email)
+    if not bank:
+        db.close()
+        return JSONResponse({"status": "not_found"}, 404)
 
-    total = len(answers)
     correct_count = 0
     exam_id = str(uuid.uuid4())
+    results = []
 
     for a in answers:
-        q_type = a.get("type", "single")
-        options = a.get("options", [])          # [{text, is_correct}]
-        selected = set(a.get("selected", []))   # [text, ...]
+        question_id = a.get("question_id")
+        selected = set(a.get("selected", []))
+
+        # ⚠️ 正確答案一律從資料庫查詢，絕不信任前端送來的 is_correct
+        q = db.query(QuizQuestion).filter(QuizQuestion.id == question_id, QuizQuestion.bank_id == bank_id).first()
+        if not q:
+            continue
+
+        db_options = db.query(QuizOption).filter(QuizOption.question_id == question_id).all()
+        options = [{"text": o.text, "is_correct": o.is_correct} for o in db_options]
         correct_set = {o["text"] for o in options if o["is_correct"]}
-
-        if q_type == "single":
-            is_correct = (selected == correct_set)
-        else:
-            is_correct = (selected == correct_set)
-
+        is_correct = (selected == correct_set)
         if is_correct:
             correct_count += 1
 
         db.add(ExamAnswer(
             id=str(uuid.uuid4()),
             session_id=exam_id,
-            question_content=a.get("content", ""),
-            question_type=q_type,
+            question_content=q.content,
+            question_type=q.type,
             options_json=json.dumps(options, ensure_ascii=False),
             selected_json=json.dumps(list(selected), ensure_ascii=False),
             is_correct=is_correct
         ))
 
+        results.append({
+            "question_id": question_id,
+            "content": q.content,
+            "type": q.type,
+            "options": options,
+            "selected": list(selected),
+            "is_correct": is_correct
+        })
+
+    total = len(results)
     score = round(correct_count / total * 100, 1) if total > 0 else 0
     exam_session = ExamSession(
         id=exam_id,
         user_email=session.user_email,
         bank_id=bank_id,
-        bank_name=bank_name,
+        bank_name=bank.name,
         total=total,
         correct=correct_count,
         score=score,
@@ -490,7 +565,7 @@ async def submit_exam(request: Request):
     db.commit()
     db.close()
     return JSONResponse({"status": "success", "session_id": exam_id, "score": score,
-                         "correct": correct_count, "total": total})
+                         "correct": correct_count, "total": total, "results": results})
 
 
 # ── 歷史紀錄 ──────────────────────────────────────────

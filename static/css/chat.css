@@ -193,6 +193,28 @@
     cursor: zoom-in;
 }
 
+.msg-bubble.file-card {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    min-width: 220px;
+    padding: 10px 14px;
+}
+
+.file-ext-badge {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
 .msg-bubble.video-card {
     padding: 0;
     overflow: hidden;

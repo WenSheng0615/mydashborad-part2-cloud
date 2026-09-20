@@ -65,8 +65,7 @@ async function fetchEvents() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
     try {
-        const res = await fetch(`/api/calendar/events?year=${year}&month=${month}`);
-        const data = await res.json();
+        const data = await FlowUI.request(`/api/calendar/events?year=${year}&month=${month}`);
 
         // 移除 loading
         const title = document.getElementById('cal-month-title').innerText.split(' (')[0];
@@ -78,7 +77,7 @@ async function fetchEvents() {
         renderCalendar(); // 重繪紅點
         if (document.getElementById(`date-${selectedDateStr}`)) selectDate(selectedDateStr);
 
-    } catch (e) { }
+    } catch (e) { FlowUI.error(e); }
 }
 
 function selectDate(dateStr) {
@@ -100,29 +99,19 @@ function selectDate(dateStr) {
     if (events.length === 0) {
         list.innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:50px;">無行程</div>';
     } else {
-        let html = '';
+        list.replaceChildren();
         events.forEach(e => {
-            let timeStr = "全天";
-            if (!e.is_all_day && e.start.includes('T')) {
-                const sTime = new Date(e.start).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
-                const eTime = new Date(e.end).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
-                timeStr = `${sTime} - ${eTime}`;
-            }
-            const evtData = encodeURIComponent(JSON.stringify(e));
-
-            html += `
-                <div class="event-card">
-                    <div class="event-time">
-                        ${e.is_all_day ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-regular fa-clock"></i>'} ${timeStr}
-                    </div>
-                    <div class="event-title">${e.summary}</div>
-                    <div class="event-actions">
-                        <button class="event-action-btn" onclick="openEventModal('edit', '${evtData}')"><i class="fa-solid fa-pen"></i></button>
-                        <button class="event-action-btn del" onclick="deleteEvent('${e.id}')"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                </div>`;
+            const card = FlowUI.node('div', null, 'event-card');
+            const time = e.is_all_day ? '全天' : `${new Date(e.start).toLocaleTimeString('zh-TW')} – ${new Date(e.end).toLocaleTimeString('zh-TW')}`;
+            const actions = FlowUI.node('div', null, 'event-actions');
+            const edit = FlowUI.node('button', '編輯', 'event-action-btn');
+            edit.onclick = () => openEventModal('edit', encodeURIComponent(JSON.stringify(e)));
+            const remove = FlowUI.node('button', '刪除', 'event-action-btn del');
+            remove.onclick = () => deleteEvent(e.id);
+            actions.append(edit, remove);
+            card.append(FlowUI.node('div', time, 'event-time'), FlowUI.node('div', e.summary, 'event-title'), actions);
+            list.append(card);
         });
-        list.innerHTML = html;
     }
 }
 
@@ -208,11 +197,11 @@ async function submitEvent() {
     btn.disabled = true;
 
     try {
-        await fetch(url, { method: 'POST', body: fd });
+        await FlowUI.request(url, { method: 'POST', body: fd });
         closeEventModal();
         currentMonthEvents = [];
         fetchEvents();
-    } catch (e) { alert("更新失敗"); }
+    } catch (e) { FlowUI.error(e); }
     finally { btn.innerText = oldText; btn.disabled = false; }
 }
 
@@ -220,8 +209,8 @@ async function deleteEvent(id) {
     showConfirmModal('刪除行程', '確定要從 Google 日曆刪除此項目嗎？', async () => {
         const fd = new FormData();
         fd.append('event_id', id);
-        await fetch('/api/calendar/delete', { method: 'POST', body: fd });
-        fetchEvents();
+        try { await FlowUI.request('/api/calendar/delete', { method: 'POST', body: fd }); await fetchEvents(); }
+        catch (error) { FlowUI.error(error); }
     });
 }
 

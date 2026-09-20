@@ -1,42 +1,26 @@
-import os
-import json
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 import yt_dlp
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request as GoogleRequest
-from googleapiclient.discovery import build
-import shutil
 
 # ✅ 改用 SQLite
-from database import get_session_info, save_session, get_db, MusicHistory
+from database import get_session_info, get_db, MusicHistory
+from services.google_auth_service import build_google_service, auth_error_body
 
 router = APIRouter(prefix="/api/music", tags=["music"])
 
-def get_youtube_service(request: Request):
-    session_id = request.cookies.get("session_id")
-    if not session_id: return None
-    
-    # ✅ 從 SQLite 讀取
-    session = get_session_info(session_id)
-    if not session: return None
-    token_json = session.token_json
-    
-    try:
-        info = json.loads(token_json)
-        creds = Credentials.from_authorized_user_info(info)
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(GoogleRequest())
-            save_session(session_id, creds.to_json(), session.user_email)
-        return build('youtube', 'v3', credentials=creds)
-    except: return None
+
+def _youtube_service(request: Request):
+    service, result = build_google_service(request, 'youtube', 'v3')
+    if not service:
+        body, status = auth_error_body(result)
+        return None, JSONResponse(body, status)
+    return service, None
 
 @router.get("/playlists")
 async def get_my_playlists(request: Request):
+    service, err = _youtube_service(request)
+    if err: return err
     try:
-        service = get_youtube_service(request)
-        if not service: return JSONResponse({"error": "未登入"}, 401)
-        
         req = service.playlists().list(part="snippet,contentDetails", mine=True, maxResults=50)
         res = req.execute()
         
@@ -57,10 +41,9 @@ async def get_my_playlists(request: Request):
 
 @router.get("/playlist/items")
 async def get_playlist_items(request: Request, playlist_id: str):
+    service, err = _youtube_service(request)
+    if err: return err
     try:
-        service = get_youtube_service(request)
-        if not service: return JSONResponse({"error": "未登入"}, 401)
-        
         req = service.playlistItems().list(part="snippet", playlistId=playlist_id, maxResults=50)
         res = req.execute()
         
@@ -75,10 +58,15 @@ async def get_playlist_items(request: Request, playlist_id: str):
                 'thumbnail': thumb_url
             })
         return JSONResponse({"items": items})
-    except Exception as e: return JSONResponse({"error": str(e)}, 500)
+    except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 
 @router.get("/stream")
-async def get_audio_stream(video_id: str):
+async def get_audio_stream(request: Request, video_id: str):
+    session = get_session_info(request.cookies.get("session_id"))
+    if not session: return JSONResponse({"error": "Login Required"}, 401)
+    import re
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+        return JSONResponse({"error": "Invalid video ID"}, 422)
     try:
         ydl_opts = {'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True, 'skip_download': True}
         url = f"https://www.youtube.com/watch?v={video_id}"
@@ -89,14 +77,13 @@ async def get_audio_stream(video_id: str):
                 "title": info['title'], 
                 "thumbnail": info.get('thumbnail')
             })
-    except Exception as e: return JSONResponse({"error": str(e)}, 500)
+    except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 
 @router.get("/search")
 async def search_youtube(request: Request, query: str):
+    service, err = _youtube_service(request)
+    if err: return err
     try:
-        service = get_youtube_service(request)
-        if not service: return JSONResponse({"error": "未登入"}, 401)
-        
         req = service.search().list(part="snippet", maxResults=20, q=query, type="video")
         res = req.execute()
         
@@ -110,7 +97,7 @@ async def search_youtube(request: Request, query: str):
                 'channel': i['snippet']['channelTitle']
             })
         return JSONResponse({"items": items})
-    except Exception as e: return JSONResponse({"error": str(e)}, 500)
+    except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 
 @router.get("/history")
 async def get_history(request: Request):

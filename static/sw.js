@@ -1,37 +1,16 @@
-const CACHE_NAME = 'focusflow-v2';
-const urlsToCache = [
-  '/',
-  '/static/manifest.json',
-  '/static/css/drive.css',
-  '/static/css/music.css',
-  '/static/css/calendar.css',
-  '/static/css/notes.css',
-  '/static/css/tasks.css',
-  '/static/css/money.css',
-  '/static/css/chat.css',
-  '/static/css/settings.css',
-  '/static/js/drive.js',
-  '/static/js/music.js',
-  '/static/js/calendar.js',
-  '/static/js/notes.js',
-  '/static/js/tasks.js',
-  '/static/js/money.js',
-  '/static/js/chat.js',
-  '/static/js/settings.js'
-];
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache);
-    })
-  );
-});
-
+// Cache only versioned, same-origin static assets. Never cache private pages or APIs.
+const CACHE_NAME = 'focusflow-static-v4';
+self.addEventListener('install', event => { self.skipWaiting(); });
+self.addEventListener('activate', event => event.waitUntil((async () => {
+    for (const name of await caches.keys()) if (name.startsWith('focusflow-') && name !== CACHE_NAME) await caches.delete(name);
+    await self.clients.claim();
+})()));
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
+    const request = event.request, url = new URL(request.url);
+    if (request.method !== 'GET' || url.origin !== self.location.origin || !url.pathname.startsWith('/static/') || url.pathname.endsWith('/sw.js')) return;
+    event.respondWith((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try { const response = await fetch(request); if (response.ok) await cache.put(request, response.clone()); return response; }
+        catch(error) { const cached = await cache.match(request); if (cached) return cached; throw error; }
+    })());
 });

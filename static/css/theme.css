@@ -1,0 +1,59 @@
+/* Shared FocusFlow palette. Feature styles must use these tokens. */
+:root {
+    color-scheme: dark;
+    --font-ui: "Segoe UI", "Microsoft JhengHei", sans-serif;
+    --radius-control: 8px;
+    --radius-card: 12px;
+    --radius-dialog: 16px;
+    --space-unit: 4px;
+    --on-accent: #fff;
+    --warning: #efbb92;
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --sidebar-bg: #000000;
+    --accent: #e63946;
+    --text-main: #ffffff;
+    --text-sub: #b0b0b0;
+    --border-color: #333;
+    --input-bg: #2a2a2a;
+    --bg-hover: #333333;
+    --accent-dim: rgba(230, 57, 70, 0.15);
+    --accent-shadow: rgba(230, 57, 70, 0.4);
+    --today-bg: rgba(230, 57, 70, 0.15);
+    --scroll-track: #1e1e1e;
+    --scroll-thumb: #444;
+    --range-bg: #404040;
+}
+
+body.light-mode {
+    color-scheme: light;
+    --warning: #8a430d;
+    --bg-color: #f0f2f5;
+    --card-bg: #ffffff;
+    --sidebar-bg: #ffffff;
+    --input-bg: #e4e6eb;
+    --border-color: #dbe0e6;
+    --bg-hover: #e4e6eb;
+    --text-main: #1a1a1a;
+    --text-sub: #65676b;
+    --accent: #bd2535;
+    --accent-dim: rgba(189, 37, 53, 0.15);
+    --accent-shadow: rgba(189, 37, 53, 0.4);
+    --today-bg: rgba(189, 37, 53, 0.1);
+    --scroll-track: #f0f0f0;
+    --scroll-thumb: #bcc0c4;
+    --range-bg: #d1d5db;
+}
+
+
+/* Resolve aliases on both themes so inherited variables never freeze dark values. */
+:root, body.light-mode {
+    --bg-card: var(--card-bg);
+    --bg-input: var(--input-bg);
+    --border: var(--border-color);
+    --bg: var(--bg-color);
+    --surface: var(--card-bg);
+    --line: var(--border-color);
+    --text: var(--text-main);
+    --muted: var(--text-sub);
+}

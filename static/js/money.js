@@ -8,8 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadMoney() {
     try {
-        const res = await fetch('/api/money/');
-        const data = await res.json();
+        const data = await FlowUI.request('/api/money/');
         currentTransactions = data.transactions || [];
         currentCategories = data.categories || [];
         document.getElementById('disp-income').innerText = `$ ${data.total_income}`;
@@ -21,65 +20,41 @@ async function loadMoney() {
     } catch (e) { console.error(e); }
 }
 
-function renderCategories(cats) {
-    const expList = document.getElementById('category-expense-list');
-    const incList = document.getElementById('category-income-list');
-    let expHtml = '', incHtml = '';
-
-    cats.forEach(c => {
-        const editData = encodeURIComponent(JSON.stringify(c));
-        if (c.type === 'income') {
-            incHtml += `
-                <div class="nt-row">
-                    <div class="nt-cell" style="flex:1">${c.name}</div>
-                    <div class="nt-cell" style="width:120px; justify-content:flex-end; font-weight:bold;">$ ${c.spent}</div>
-                    <div class="nt-cell" style="width:70px; justify-content:center; gap:10px;">
-                        <i class="fa-solid fa-pen action-icon" onclick="openEditCategoryModal('${editData}')"></i>
-                        <i class="fa-solid fa-xmark action-icon" onclick="deleteCategory('${c.name}')"></i>
-                    </div>
-                </div>`;
-        } else {
-            let statusHtml = `<span class="status-badge normal"><div class="dot"></div>正常</span>`;
-            if (c.status === 'warning') statusHtml = `<span class="status-badge warning"><div class="dot"></div>預警</span>`;
-            if (c.status === 'over') statusHtml = `<span class="status-badge over"><div class="dot"></div>超支</span>`;
-            expHtml += `
-                <div class="nt-row">
-                    <div class="nt-cell" style="flex:1">${c.name}</div>
-                    <div class="nt-cell" style="width:100px; justify-content:flex-end; font-weight:bold;">$ ${c.spent}</div>
-                    <div class="nt-cell" style="width:100px; justify-content:flex-end; color:var(--text-sub);">$ ${c.budget}</div>
-                    <div class="nt-cell" style="width:100px; justify-content:center;">${statusHtml}</div>
-                    <div class="nt-cell" style="width:70px; justify-content:center; gap:10px;">
-                        <i class="fa-solid fa-pen action-icon" onclick="openEditCategoryModal('${editData}')"></i>
-                        <i class="fa-solid fa-xmark action-icon" onclick="deleteCategory('${c.name}')"></i>
-                    </div>
-                </div>`;
-        }
-    });
-    expList.innerHTML = expHtml || '<div style="padding:10px;text-align:center;color:var(--text-sub);">無支出類別</div>';
-    incList.innerHTML = incHtml || '<div style="padding:10px;text-align:center;color:var(--text-sub);">無收入類別</div>';
+function moneyCell(text, width, flex) {
+    const cell=FlowUI.node('div',text,'nt-cell');
+    if(width)cell.style.width=width+'px';if(flex)cell.style.flex=flex;
+    return cell;
 }
-
+function moneyAction(label, action) {
+    const button=FlowUI.node('button',label,'action-icon');button.type='button';button.onclick=action;return button;
+}
+function renderCategories(cats) {
+    const expense=document.getElementById('category-expense-list'), income=document.getElementById('category-income-list');
+    expense.replaceChildren();income.replaceChildren();
+    for(const category of cats){
+        const row=FlowUI.node('div',null,'nt-row');
+        row.append(moneyCell(category.name,null,'1'),moneyCell(`$ ${category.spent}`,category.type==='income'?120:100));
+        if(category.type!=='income') {
+            const status=['warning','over'].includes(category.status)?category.status:'normal';
+            const cell=moneyCell(null,100);cell.append(FlowUI.node('span',{normal:'正常',warning:'預警',over:'超支'}[status],'status-badge '+status));
+            row.append(moneyCell(`$ ${category.budget}`,100),cell);
+        }
+        const actions=moneyCell(null,70);actions.append(moneyAction('編輯',()=>openEditCategoryModal(encodeURIComponent(JSON.stringify(category)))),moneyAction('刪除',()=>deleteCategory(category.name)));
+        row.append(actions);(category.type==='income'?income:expense).append(row);
+    }
+    if(!expense.childElementCount)expense.append(FlowUI.node('p','無支出類別'));
+    if(!income.childElementCount)income.append(FlowUI.node('p','無收入類別'));
+}
 function renderTransactions(txs) {
-    const list = document.getElementById('transaction-list');
-    if (txs.length === 0) { list.innerHTML = '<p style="text-align:center; color:var(--text-sub); margin-top:20px;">無交易紀錄</p>'; return; }
-    let html = '';
-    txs.forEach(tx => {
-        const isExp = tx.type === 'expense';
-        const color = isExp ? '#ff7875' : '#73d13d';
-        const sign = isExp ? '-' : '+';
-        const typeTag = isExp ? '<span class="tag expense">支</span>' : '<span class="tag income">收</span>';
-        html += `
-            <div class="nt-row">
-                <div class="nt-cell" style="width:120px; color:var(--text-sub); font-size:0.8rem;">${tx.date}</div>
-                <div class="nt-cell" style="width:80px; justify-content:center;">${typeTag}</div>
-                <div class="nt-cell" style="width:100px;">${tx.category}</div>
-                <div class="nt-cell" style="flex:1.5; font-weight:500;">${tx.item}</div>
-                <div class="nt-cell" style="width:120px; justify-content:flex-start; padding-left:20px; color:${color}; font-weight:bold;">${sign} $${tx.amount}</div>
-                <div class="nt-cell" style="flex:1; opacity:0.7; font-size:0.8rem;">${tx.note}</div>
-                <div class="nt-cell" style="width:50px; justify-content:center;"><i class="fa-solid fa-trash action-icon" onclick="deleteTx('${tx.id}')"></i></div>
-            </div>`;
-    });
-    list.innerHTML = html;
+    const list=document.getElementById('transaction-list');list.replaceChildren();
+    if(!txs.length){list.append(FlowUI.node('p','無交易紀錄'));return;}
+    for(const tx of txs){
+        const row=FlowUI.node('div',null,'nt-row');const expense=tx.type==='expense';
+        const type=moneyCell(null,80);type.append(FlowUI.node('span',expense?'支':'收','tag '+(expense?'expense':'income')));
+        const actions=moneyCell(null,50);actions.append(moneyAction('刪除',()=>deleteTx(tx.id)));
+        row.append(moneyCell(tx.date,120),type,moneyCell(tx.category,100),moneyCell(tx.item,null,'1.5'),moneyCell(`${expense?'-':'+'} $${tx.amount}`,120),moneyCell(tx.note,null,'1'),actions);
+        list.append(row);
+    }
 }
 
 // Category & Transaction CRUD
@@ -90,11 +65,11 @@ async function addCategory(type) {
     if (type === 'expense') { budget = budgetInput.value; if (!budget) return alert("請輸入預算"); }
     if (!name) return alert("請輸入名稱");
     const fd = new FormData(); fd.append('name', name); fd.append('budget', budget); fd.append('type', type);
-    await fetch('/api/money/category/add', { method: 'POST', body: fd });
+    await FlowUI.request('/api/money/category/add', { method: 'POST', body: fd });
     nameInput.value = ''; if (budgetInput) budgetInput.value = '';
     loadMoney();
 }
-async function deleteCategory(name) { showConfirmModal('刪除類別', `確定刪除 "${name}"？`, async () => { const fd = new FormData(); fd.append('name', name); await fetch('/api/money/category/delete', { method: 'POST', body: fd }); loadMoney(); }); }
+async function deleteCategory(name) { showConfirmModal('刪除類別', `確定刪除 "${name}"？`, async () => { const fd = new FormData(); fd.append('name', name); await FlowUI.request('/api/money/category/delete', { method: 'POST', body: fd }); loadMoney(); }); }
 function openMoneyModal() { updateCategoryOptions(); document.getElementById('money-modal').style.display = 'flex'; }
 function closeMoneyModal() { document.getElementById('money-modal').style.display = 'none'; }
 function updateCategoryOptions() {
@@ -114,11 +89,11 @@ async function submitTransaction() {
     fd.append('category', document.getElementById('m-category').value);
     fd.append('note', document.getElementById('m-note').value);
     if (!fd.get('item') || !fd.get('amount')) return alert("請輸入完整資訊");
-    await fetch('/api/money/add', { method: 'POST', body: fd });
+    await FlowUI.request('/api/money/add', { method: 'POST', body: fd });
     closeMoneyModal(); document.getElementById('m-item').value = ''; document.getElementById('m-amount').value = ''; loadMoney();
 }
-async function deleteTx(id) { showConfirmModal('刪除紀錄', '確定刪除?', async () => { const fd = new FormData(); fd.append('id', id); await fetch('/api/money/delete', { method: 'POST', body: fd }); loadMoney(); }); }
-async function resetMoney() { showConfirmModal('清空', '確定清空所有交易?', async () => { await fetch('/api/money/reset', { method: 'POST' }); loadMoney(); }); }
+async function deleteTx(id) { showConfirmModal('刪除紀錄', '確定刪除?', async () => { const fd = new FormData(); fd.append('id', id); await FlowUI.request('/api/money/delete', { method: 'POST', body: fd }); loadMoney(); }); }
+async function resetMoney() { showConfirmModal('清空', '確定清空所有交易?', async () => { await FlowUI.request('/api/money/reset', { method: 'POST' }); loadMoney(); }); }
 function openEditCategoryModal(dataStr) {
     const c = JSON.parse(decodeURIComponent(dataStr));
     document.getElementById('edit-cat-old-name').value = c.name;
@@ -135,7 +110,7 @@ async function submitEditCategory() {
     fd.append('new_name', document.getElementById('edit-cat-name').value);
     fd.append('budget', document.getElementById('edit-cat-budget').value);
     fd.append('type', document.getElementById('edit-cat-type').value);
-    await fetch('/api/money/category/update', { method: 'POST', body: fd });
+    await FlowUI.request('/api/money/category/update', { method: 'POST', body: fd });
     closeEditCategoryModal(); loadMoney();
 }
 function exportExcel() {
@@ -153,3 +128,15 @@ function exportExcel() {
     link.click();
     document.body.removeChild(link);
 }
+const moneyWrites = new Set();
+function guardedMoneyWrite(key, fn) {
+    return async (...args) => {
+        if(moneyWrites.has(key))return;
+        moneyWrites.add(key);
+        try {return await fn(...args);} catch(error){FlowUI.error(error);}
+        finally{moneyWrites.delete(key);}
+    };
+}
+addCategory=guardedMoneyWrite('category',addCategory);
+submitTransaction=guardedMoneyWrite('transaction',submitTransaction);
+submitEditCategory=guardedMoneyWrite('edit-category',submitEditCategory);

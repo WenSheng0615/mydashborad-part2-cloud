@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FocusFlow · 我的工作空間</title><link rel="stylesheet" href="/static/css/theme.css?v=6000"><link rel="stylesheet" href="/static/css/projects.css?v=6000"><link rel="stylesheet" href="/static/css/components.css?v=6000"></head>
+<body><script src="/static/js/theme.js?v=6000"></script><aside class="rail"><a class="brand" href="/">Focus<span>Flow</span><small>PERSONAL WORKSPACE</small></a>
+<button id="today-nav" class="nav active">◷ 今日總覽</button><button id="trash-nav" class="nav">↺ 筆記回收桶</button>
+<div class="rail-heading"><label for="workspace-select">工作空間</label><button id="new-workspace" aria-label="新增工作空間">＋</button></div>
+<select id="workspace-select" aria-label="切換工作空間"></select>
+<div id="workspace-actions"></div>
+<div class="rail-heading"><span>專案與課程</span><button id="new-project" aria-label="新增專案或課程">＋</button></div>
+<label class="archive-filter"><input type="checkbox" id="show-archived"> 顯示已封存</label><nav id="project-list" aria-label="專案清單"></nav>
+<div class="rail-bottom"><a href="/">← 原有 Dashboard</a><a href="/api/overview/export" download>匯出我的內容 ↓</a><small>本機專案任務 · 與 Google Tasks 分開管理</small></div></aside>
+<main><header class="topbar"><form id="search-form"><label class="sr-only" for="search-input">搜尋工作空間內容</label><input id="search-input" placeholder="搜尋專案、任務、筆記…" maxlength="200" required><button>搜尋</button></form><span id="date-label"></span></header>
+<div id="notice" role="status" aria-live="polite"></div>
+<section class="hero"><div><p id="eyebrow" class="eyebrow">TODAY / 每天前進一點</p><h1 id="page-title">今天，從哪裡開始？</h1><p id="page-subtitle">把注意力留給值得完成的事。</p></div><div id="page-actions"></div></section>
+<div id="content" aria-live="polite"><p>正在載入你的工作空間…</p></div>
+<footer>FOCUSFLOW <span>學習、工作與生活，放回自己的脈絡。</span></footer></main>
+<dialog id="editor"><form id="editor-form"><div class="dialog-head"><h2 id="editor-title"></h2><button type="button" id="editor-close" aria-label="關閉">×</button></div><div id="editor-fields"></div><p id="editor-error" role="alert"></p><div class="dialog-foot"><button type="button" id="editor-cancel">取消</button><button id="editor-save" class="primary">儲存</button></div></form></dialog>
+<script src="/static/js/ui.js?v=5000"></script><script src="/static/js/projects.js?v=6003"></script></body></html>
