@@ -1,23 +1,31 @@
+"""Explicit SQLite migration with online backup; stop app writers before use."""
 import sqlite3
-import os
+from datetime import datetime, timezone
+from pathlib import Path
+from alembic import command
+from alembic.config import Config
+from sqlalchemy.engine import make_url
+from config import DATABASE_URL, BASE_DIR
 
-db_path = os.path.join(os.getcwd(), "focusflow.db")
-print(f"正在更新資料庫: {db_path}")
+def upgrade_database():
+    url = make_url(DATABASE_URL)
+    if not url.database or url.database == ":memory:":
+        raise RuntimeError("Migration CLI requires a file-backed SQLite database")
+    path = Path(url.database).resolve()
+    if path.exists():
+        backup_dir = path.parent / ".local" / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        backup = backup_dir / f"{path.name}.{stamp}.db"
+        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as source:
+            with sqlite3.connect(backup) as target:
+                source.backup(target)
+                if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise RuntimeError("Backup integrity check failed")
+        print(f"Verified backup: {backup}")
+    cfg = Config(str(BASE_DIR / "alembic.ini"))
+    command.upgrade(cfg, "head")
+    print("Database is at migration head")
 
-try:
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    # 嘗試增加欄位
-    cursor.execute("ALTER TABLE notes ADD COLUMN image_url TEXT")
-    conn.commit()
-    print("✅ 成功補上 image_url 欄位！")
-except sqlite3.OperationalError as e:
-    if "duplicate column name" in str(e):
-        print("ℹ️ image_url 欄位已經存在，無需更新。")
-    else:
-        print(f"❌ 發生錯誤: {e}")
-except Exception as e:
-    print(f"❌ 發生未知錯誤: {e}")
-finally:
-    if 'conn' in locals():
-        conn.close()
+if __name__ == "__main__":
+    upgrade_database()
