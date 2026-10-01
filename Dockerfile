@@ -4,6 +4,7 @@ FROM python:3.11-slim
 # 安裝系統依賴
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    nodejs \
     build-essential \
     python3-dev \
     pkg-config \

@@ -68,7 +68,18 @@ async def get_audio_stream(request: Request, video_id: str):
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
         return JSONResponse({"error": "Invalid video ID"}, 422)
     try:
-        ydl_opts = {'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True, 'skip_download': True}
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'noplaylist': True,
+            'quiet': True,
+            'skip_download': True,
+            'js_runtimes': {
+                'node': {
+                    'path': '/usr/bin/node'
+                }
+            },
+            'remote_components': ['ejs:github']
+        }
         url = f"https://www.youtube.com/watch?v={video_id}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
