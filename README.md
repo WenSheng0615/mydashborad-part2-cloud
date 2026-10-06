@@ -4,6 +4,19 @@
 
 FastAPI + Jinja2 + SQLite personal workspace. V1 modules remain available; V2 includes a Workspace / Project UI and API core.
 
+## HomeCloud Production Status
+
+As of 2026-10-05, FocusFlow is running on the private HomeCloud environment using Docker Compose, persistent SQLite, Redis, nginx, Tailscale private HTTPS, scheduled backup, health monitoring, Discord alerts, and a Windows VM-external backup copy.
+
+This is a private self-hosted deployment, not a public Internet production service.
+
+See:
+
+- `docs/HOMECLOUD_DEPLOYMENT.md`
+- `docs/HOMECLOUD_OPERATIONS.md`
+- `docs/BACKUP_RESTORE.md`
+
+
 ## Local development (PowerShell)
 
 Use Python 3.11+ (this run tested Python 3.12). From this repository:
@@ -70,7 +83,9 @@ Tests always use temporary DBs and disable real credentials before importing the
 
 ## Docker
 
-Existing Dockerfile is retained (Python 3.11 + ffmpeg). `.dockerignore` excludes secrets, databases, virtual environments, and local backups. Supply credentials at runtime; mount a persistent directory and set `DATABASE_URL=sqlite:////data/focusflow.db`. Run `python migrate_db.py` as a one-off step against that same mounted directory before starting uvicorn. Persist `/data/.local/backups` with the data. Docker image build was not tested because Docker is unavailable in this execution environment.
+FocusFlow is currently deployed on HomeCloud using Docker Compose. The application uses a persistent `/data` mount with `DATABASE_URL=sqlite:////data/focusflow.db`, while credentials are supplied only at runtime and are not stored in the image. Redis runs as an internal Docker service without a published host port. The application port is bound to `127.0.0.1:8000` and is reached through nginx and Tailscale Serve.
+
+Before database migration or other destructive operations, create and verify a backup first. See `docs/HOMECLOUD_DEPLOYMENT.md` and `docs/HOMECLOUD_OPERATIONS.md` for the current production procedure.
 
 See V1_AUDIT.md and V2_IMPLEMENTATION_PLAN.md for findings, scope and deferred work.
 

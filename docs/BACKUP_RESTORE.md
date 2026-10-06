@@ -33,3 +33,31 @@ python scripts/backup_restore.py .local/backups/manual-YYYYMMDD-HHMM.db .local/r
 ## Limitations / 敏感資料
 
 DB 備份包含 session token 與私人資料；不是 sanitized export。放 .local 下且 *.db 被 Git/Docker 排除。不可提交或貼出 DB；限制檔案 ACL，另備加密異機副本。此 Sprint 只建立同機副本，不能抵抗硬碟故障/勒索軟體。OAuth JSON/.env 與雲端附件不包含於 DB 備份，須另行安全保管；Firebase 歷史物件無法用 DB 還原。
+
+---
+
+## 2026-10 Production Update
+
+Sprint 3 時本文件只涵蓋 repository 內的 manual backup / restore drill。
+
+截至 2026-10-05，
+HomeCloud 已新增實際 production backup chain：
+
+- Ubuntu 每日 03:00 使用 systemd timer 建立 SQLite backup。
+- Backup 使用 SQLite Backup API。
+- Backup 完成後執行 `PRAGMA quick_check` 與 table count 驗證。
+- HomeCloud 端保留 14 天。
+- Windows host 每日 03:15 透過 Tailscale SSH / SCP 取得最新 backup。
+- Windows 端保留 30 天。
+- 已執行隔離 restore drill，驗證 quick_check、tables 與 application schema preflight。
+
+目前 Windows copy 屬於 VM-external second copy，
+不是 encrypted geographic off-site backup。
+
+Production backup 操作、排程與 monitoring 詳情請參考：
+
+- `docs/HOMECLOUD_OPERATIONS.md`
+- `docs/HOMECLOUD_DEPLOYMENT.md`
+
+原本 Sprint 3 的 manual backup / restore 流程仍保留，
+作為開發環境與 isolated restore drill 的參考。
