@@ -3,15 +3,17 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>FocusFlow OS</title>
-    <link rel="stylesheet" href="/static/css/theme.css?v=6000">
+    <link rel="stylesheet" href="/static/css/theme.css?v=8000">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="/static/css/drive.css?v=4001">
     <link rel="stylesheet" href="/static/css/music.css?v=4001">
-    <link rel="stylesheet" href="/static/css/calendar.css?v=4001">
+    <link rel="stylesheet" href="/static/css/calendar.css?v=8000">
     <link rel="stylesheet" href="/static/css/notes.css?v=4001">
     <link rel="stylesheet" href="/static/css/tasks.css?v=4001">
     <link rel="stylesheet" href="/static/css/money.css?v=4001">
@@ -19,12 +21,12 @@
     <link rel="stylesheet" href="/static/css/settings.css?v=4001">
     <link rel="stylesheet" href="/static/css/quiz.css?v=4002">
 
-    <link rel="stylesheet" href="/static/css/dashboard.css?v=6000">
-    <link rel="stylesheet" href="/static/css/components.css?v=6000">
+    <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
+    <link rel="stylesheet" href="/static/css/components.css?v=8000">
 </head>
 
 <body>
-    <script src="/static/js/theme.js?v=6000"></script>
+    <script src="/static/js/theme.js?v=8000"></script>
     <div id="confirm-modal" class="modal-overlay">
         <div class="modal-box">
             <h3 id="modal-title" class="modal-title">確認</h3>
@@ -41,6 +43,7 @@
         </div>
     </div>
     <div id="launcher">
+        <header class="home-heading"><img src="/static/icons/icon.svg" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div></header>
         <a class="app-icon-card" href="/projects" style="text-decoration:none;color:inherit"><i class="fa-solid fa-layer-group"></i><span>工作空間 / Today</span></a>
         <div class="app-icon-card" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></div>
         <div class="app-icon-card" onclick="openApp('drive')"><i
@@ -58,18 +61,18 @@
     </div>
 
     <nav id="sidebar">
-        <a class="nav-item" href="/projects" title="工作空間 / Today"><i class="fa-solid fa-layer-group"></i></a>
+        <a class="nav-item" href="/projects" aria-label="工作空間" title="工作空間 / Today"><i class="fa-solid fa-layer-group"></i></a>
         <div class="nav-item" id="nav-music" onclick="openApp('music')"><i class="fa-solid fa-music"></i></div>
         <div class="nav-item" id="nav-drive" onclick="openApp('drive')"><i class="fa-brands fa-google-drive"></i></div>
-        <div class="nav-item" id="nav-notes" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i></div>
-        <div class="nav-item" id="nav-calendar" onclick="openApp('calendar')"><i class="fa-solid fa-calendar-days"></i>
+        <div class="nav-item" id="nav-notes" aria-label="筆記" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i></div>
+        <div class="nav-item" id="nav-calendar" aria-label="行事曆" onclick="openApp('calendar')"><i class="fa-solid fa-calendar-days"></i>
         </div>
         <div class="nav-item" id="nav-tasks" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i></div>
         <div class="nav-item" id="nav-money" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i></div>
         <div class="nav-item" id="nav-chat" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i></div>
         <div class="nav-item" id="nav-settings" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i></div>
         <div class="nav-item" id="nav-quiz" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i></div>
-        <div class="nav-item home-btn" onclick="goHome()"><i class="fa-solid fa-th-large"></i></div>
+        <button class="nav-item home-btn" onclick="goHome()" aria-label="所有應用程式"><i class="fa-solid fa-th-large"></i><span>所有 App</span></button>
     </nav>
 
     <main id="workspace">
@@ -86,8 +89,8 @@
 
     <script src="/static/js/ui.js?v=5000"></script>
     <script src="/static/js/drive.js?v=6001"></script>
-    <script src="/static/js/music.js?v=7000"></script>
-    <script src="/static/js/calendar.js?v=6001"></script>
+    <script src="/static/js/music.js?v=8000"></script>
+    <script src="/static/js/calendar.js?v=8000"></script>
     <script src="/static/js/notes.js?v=5000"></script>
     <script src="/static/js/tasks.js?v=7001"></script>
     <script src="/static/js/money.js?v=7000"></script>

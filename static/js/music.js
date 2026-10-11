@@ -2,6 +2,14 @@ let musicQueue = [], currentTrackIndex = 0, isPlaying = false, loopMode = 0, isS
 const audio = document.getElementById('audio-player');
 
 document.addEventListener('DOMContentLoaded', () => {
+    const cover = document.getElementById('player-art-container');
+    cover.setAttribute('role', 'button');
+    cover.tabIndex = 0;
+    cover.setAttribute('aria-label', '播放或暫停');
+    cover.addEventListener('click', togglePlayState);
+    cover.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); togglePlayState(); }
+    });
     // 初始化事件監聽
     if (audio) {
         audio.addEventListener('ended', onAudioEnded);
@@ -163,7 +171,7 @@ function updatePlayBtn(playing) {
 
 function togglePlayState() {
     if (!audio.src) return;
-    if (audio.paused) audio.play(); else audio.pause();
+    if (audio.paused) audio.play().catch(() => showAlert('播放失敗', '請重新選擇歌曲後再試。')); else audio.pause();
 }
 
 function onAudioEnded() {

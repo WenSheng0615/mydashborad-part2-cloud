@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from fastapi import APIRouter, Form, Request, HTTPException
+from fastapi import APIRouter, Form, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from services.google_auth_service import build_google_service, auth_error_body
@@ -101,3 +101,18 @@ def delete_event(request: Request, event_id: str = Form(...)):
         service.events().delete(calendarId='primary', eventId=event_id).execute()
         return {"status": "success"}
     except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
+
+
+@router.get("/icloud/events")
+def icloud_events(request: Request, year: int = Query(ge=1970, le=9998), month: int = Query(ge=1, le=12)):
+    from database import get_session_info
+    from services.icloud_calendar import read_events
+    session = get_session_info(request.cookies.get("session_id"))
+    if not session or not session.user_email:
+        raise HTTPException(401, "請先登入")
+    start = datetime(year, month, 1, tzinfo=ZoneInfo(APP_TIMEZONE))
+    end = datetime(year + (month == 12), 1 if month == 12 else month + 1, 1, tzinfo=ZoneInfo(APP_TIMEZONE))
+    try:
+        return read_events(session.user_email, start, end)
+    except Exception:
+        return JSONResponse({"error": "iCloud 暫時無法讀取，請檢查連線設定或稍後重試"}, 502)

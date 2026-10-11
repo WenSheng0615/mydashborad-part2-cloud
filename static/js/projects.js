@@ -13,6 +13,7 @@ async function loadCatalog() {
     const old=$('workspace-select').value;
     $('workspace-select').replaceChildren(...spaces.map(w=>{const option=el('option',w.name);option.value=w.id;return option;}));
     if(spaces.some(w=>w.id===old)) $('workspace-select').value=old;
+    if (!spaces.length) { const placeholder=el('option','尚未建立工作空間'); placeholder.value=''; $('workspace-select').append(placeholder); }
     renderRail();
 }
 function renderRail() {
@@ -62,6 +63,8 @@ function editTask(task,p,refresh) {
     });
 }
 function rememberView(view, id = '') {
+    document.body.classList.remove('rail-open');
+    $('rail-toggle').setAttribute('aria-expanded', 'false');
     const url = new URL(location.href); url.search = '';
     if (view === 'project') url.searchParams.set('project', id);
     else if (view === 'trash') url.searchParams.set('view', 'trash');
@@ -94,10 +97,11 @@ async function showToday() {
     const data=await request('/api/overview/today');if(serial!==renderSerial)return;
     $('date-label').textContent=data.date;
     const groups=[['overdue','逾期待辦'],['today','今天到期'],['unscheduled','未排日期'],['upcoming','接下來']];
+    if(!catalog.some(p=>!p.archived_at)) { renderGettingStarted(); return; }
     const grid=el('div',null,'stat-grid');for(const [key,title] of groups){const card=el('div',null,'stat '+key);card.append(el('strong',data.counts[key]),el('span',title));grid.append(card);}$('content').append(grid);
-    if(!catalog.length) { const s=section('開始你的第一個工作空間');empty(s.body,'先建立工作空間，再把課程或專案放進來。');s.body.append(button('建立工作空間',()=>newWorkspace(),true));return; }
+    const daily=el('div',null,'daily-grid'); $('content').append(daily);
     for(const [key,title] of groups){
-        const s=section(title);if(!data[key].length){empty(s.body,key==='overdue'?'沒有逾期任務，保持這個節奏。':'這裡暫時沒有任務。');continue;}
+        const s=section(title,daily);s.head.append(el('small',`${data.counts[key]} 項`));if(!data[key].length){empty(s.body,key==='overdue'?'沒有逾期任務，保持這個節奏。':'這裡暫時沒有任務。');continue;}
         s.body.className='list';
         const append = rows => rows.forEach(task => s.body.append(taskRow(task,{id:task.project_id,workspace_id:task.workspace_id},showToday)));
         append(data[key]); let offset=data[key].length;
@@ -113,6 +117,19 @@ async function showToday() {
             }); s.head.append(more);
         }
     }
+}
+function renderGettingStarted() {
+    const hasSpace=spaces.length>0;
+    const panel=el('section',null,'onboarding');
+    const intro=el('div',null,'onboarding-intro');
+    intro.append(el('p','從一個小目標開始','eyebrow'),el('h2',hasSpace?'工作空間準備好了。':'讓每件事，都有自己的位置。'),el('p',hasSpace?'加入一個專案或課程，就能把任務與筆記整理在一起。':'先為學習、工作或生活建立工作空間，再放進正在進行的專案。','muted'));
+    intro.append(button(hasSpace?'＋ 建立第一個專案':'＋ 建立工作空間',()=>hasSpace?$('new-project').click():newWorkspace(),true));
+    const steps=el('ol',null,'setup-steps');
+    for(const [number,title,description] of [['01','工作空間','例如：大學生活、個人計畫'],['02','專案或課程','例如：畢業專題、資料庫課程'],['03','任務與筆記','寫下下一步，留下重要想法']]) {
+        const item=el('li'); item.append(el('span',number,'step-number'));const text=el('div');text.append(el('h3',title),el('p',description));item.append(text);steps.append(item);
+    }
+    panel.append(intro,steps);$('content').append(panel);
+    if(catalog.some(p=>p.archived_at))$('content').append(el('p','你還有已封存的專案，可從選單勾選「顯示已封存」後還原。','muted'));
 }
 async function openProject(id) {
     const p=catalog.find(p=>p.id===id);if(!p)throw new Error('專案不存在，請重新載入。');rememberView('project',id);selected=p;if(p.archived_at)$('show-archived').checked=true;$('workspace-select').value=p.workspace_id;renderRail();
@@ -147,9 +164,11 @@ async function attachNote(p) {
 }
 async function showTrash(){rememberView('trash');const serial=++renderSerial;selected=null;renderRail();heading('筆記回收桶','刪除的筆記仍保留在這裡，可隨時還原。','RECOVER / 保留你的心血');const data=await request('/api/notes/trash');if(serial!==renderSerial)return;const grid=el('div',null,'note-grid');if(!data.notes.length)empty(grid,'回收桶是空的。');for(const note of data.notes)grid.append(noteCard(note,null,true));$('content').append(grid);}
 function newWorkspace(){edit('新增工作空間',[field('name','名稱，例如：大三上')],async values=>{const w=await request('/api/workspaces',json('POST',values));await loadCatalog();$('workspace-select').value=w.id;renderRail();await showToday();});}
+$('rail-toggle').onclick=()=>{ const open=document.body.classList.toggle('rail-open'); $('rail-toggle').setAttribute('aria-expanded', String(open)); };
+document.addEventListener('keydown', event=>{if(event.key==='Escape'){document.body.classList.remove('rail-open');$('rail-toggle').setAttribute('aria-expanded','false');}});
 $('new-workspace').onclick=newWorkspace;
 $('new-project').onclick=()=>{const wid=$('workspace-select').value;edit('新增專案或課程',[field('name','名稱'),field('kind','類型','select','project',[['project','專案'],['course','課程']])],async values=>{const p=await request(`/api/workspaces/${wid}/projects`,json('POST',values));await loadCatalog();await openProject(p.id);});};
 $('workspace-select').onchange=renderRail;$('show-archived').onchange=renderRail;
 $('today-nav').onclick=()=>showToday().catch(fail);$('trash-nav').onclick=()=>showTrash().catch(fail);
-$('search-form').onsubmit=async event=>{event.preventDefault();const q=$('search-input').value.trim();if(!q)return;const serial=++renderSerial;try{const data=await request('/api/overview/search?q='+encodeURIComponent(q));if(serial!==renderSerial)return;heading(`搜尋「${q}」`,'每種類型最多顯示 50 筆結果。','FIND / 找回需要的內容');for(const [key,title] of [['projects','專案與課程'],['tasks','任務'],['notes','筆記']]){const s=section(title);if(!data[key].length)empty(s.body,'沒有符合的內容。');for(const item of data[key]){if(key==='notes')s.body.append(noteCard(item,catalog.find(p=>p.id===item.project_id)));else s.body.append(button(item.name||item.title,()=>openProject(key==='projects'?item.id:item.project_id)));}}}catch(error){fail(error);}};
+$('search-form').onsubmit=async event=>{event.preventDefault();const q=$('search-input').value.trim();if(!q)return;const serial=++renderSerial;try{const data=await request('/api/overview/search?q='+encodeURIComponent(q));if(serial!==renderSerial)return;heading(`搜尋「${q}」`,'每種類型最多顯示 50 筆結果。','FIND / 找回需要的內容');for(const [key,title] of [['projects','專案與課程'],['tasks','任務'],['notes','筆記']]){const s=section(title,daily);s.head.append(el('small',`${data.counts[key]} 項`));if(!data[key].length)empty(s.body,'沒有符合的內容。');for(const item of data[key]){if(key==='notes')s.body.append(noteCard(item,catalog.find(p=>p.id===item.project_id)));else s.body.append(button(item.name||item.title,()=>openProject(key==='projects'?item.id:item.project_id)));}}}catch(error){fail(error);}};
 (async()=>{try{await loadCatalog();try{await restoreView();}catch(error){await showToday();fail(error);}}catch(error){heading('開始使用 FocusFlow','登入後即可管理自己的工作空間。','WELCOME');$('content').append(el('p','請先回 Dashboard 登入 Google，或使用訪客模式。'));const a=el('a','使用訪客模式');a.href='/api/auth/guest';$('content').append(a);fail(error);}})();

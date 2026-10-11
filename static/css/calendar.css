@@ -209,3 +209,16 @@
 .event-action-btn.del:hover {
     color: #ff4d4f;
 }
+.calendar-main, .calendar-sidebar { min-height: 0; min-width: 0; box-sizing: border-box; }
+.day-cell { min-height: 62px; }
+.day-cell.today .day-number { background: var(--accent); color: white; border-radius: 50%; padding: 6px; }
+.event-count { color: var(--text-sub); font-size: .7rem; }
+.event-actions { position: static; margin-top: 12px; }
+.event-title { overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+ .calendar-main { padding: 12px; flex: none; }
+ .calendar-header { flex-wrap: wrap; gap: 12px; }
+ .days-grid-area { gap: 3px; }
+ .day-cell { padding: 3px; min-height: 58px; }
+ .calendar-sidebar { flex: none; min-height: 200px; }
+}

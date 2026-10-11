@@ -1,5 +1,6 @@
 let currentDate = new Date();
 let currentMonthEvents = [];
+let calendarRequest = 0;
 // ★ 初始化預設選中今天 ★
 let selectedDateStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -56,17 +57,30 @@ function renderCalendar() {
             <div class="day-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" 
                  id="date-${dateStr}" onclick="selectDate('${dateStr}')">
                 <div class="day-number">${i}</div>
-                <div class="event-dots">${dotsHtml}</div>
+                <div class="event-dots">${dotsHtml}</div>${dayEvents.length ? `<span class="event-count">${dayEvents.length} 筆</span>` : ""}
             </div>`;
     }
 }
 
 async function fetchEvents() {
+    const requestId = ++calendarRequest;
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
     try {
-        const data = await FlowUI.request(`/api/calendar/events?year=${year}&month=${month}`);
+        const results = await Promise.allSettled([
+            FlowUI.request(`/api/calendar/events?year=${year}&month=${month}`),
+            FlowUI.request(`/api/calendar/icloud/events?year=${year}&month=${month}`)
+        ]);
+        if (requestId !== calendarRequest) return;
+        const [google, icloud] = results;
+        const data = {events: [
+            ...(google.status === 'fulfilled' ? (google.value.events || []).map(e => ({...e, source: 'google'})) : []),
+            ...(icloud.status === 'fulfilled' ? icloud.value.events || [] : [])
+        ]};
+        document.getElementById('calendar-source-status').textContent =
+            `Google：${google.status === 'fulfilled' ? '已載入' : '讀取失敗'} · iCloud：${icloud.status !== 'fulfilled' ? '讀取失敗' : icloud.value.status === 'connected' ? '已載入（唯讀）' : '尚未連線'}`;
 
+        if (requestId !== calendarRequest) return;
         // 移除 loading
         const title = document.getElementById('cal-month-title').innerText.split(' (')[0];
         document.getElementById('cal-month-title').innerText = title;
@@ -77,7 +91,7 @@ async function fetchEvents() {
         renderCalendar(); // 重繪紅點
         if (document.getElementById(`date-${selectedDateStr}`)) selectDate(selectedDateStr);
 
-    } catch (e) { FlowUI.error(e); }
+    } catch (e) { if (requestId === calendarRequest) { renderCalendar(); FlowUI.error(e); } }
 }
 
 function selectDate(dateStr) {
@@ -108,8 +122,8 @@ function selectDate(dateStr) {
             edit.onclick = () => openEventModal('edit', encodeURIComponent(JSON.stringify(e)));
             const remove = FlowUI.node('button', '刪除', 'event-action-btn del');
             remove.onclick = () => deleteEvent(e.id);
-            actions.append(edit, remove);
-            card.append(FlowUI.node('div', time, 'event-time'), FlowUI.node('div', e.summary, 'event-title'), actions);
+            if (!e.read_only) actions.append(edit, remove);
+            card.append(FlowUI.node('div', `${e.source === 'icloud' ? 'iCloud · 唯讀' : 'Google'} · ${time}`, 'event-time'), FlowUI.node('div', e.summary, 'event-title'), actions);
             list.append(card);
         });
     }
@@ -214,7 +228,7 @@ async function deleteEvent(id) {
     });
 }
 
-function changeMonth(delta) { currentDate.setMonth(currentDate.getMonth() + delta); initCalendar(); }
+function changeMonth(delta) { currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1); selectedDateStr = currentDate.toLocaleDateString('en-CA'); currentMonthEvents = []; initCalendar(); }
 function goToToday() {
     currentDate = new Date();
     selectedDateStr = currentDate.toLocaleDateString('en-CA');

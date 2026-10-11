@@ -39,6 +39,28 @@ with sync_playwright() as p:
     results.append(dict(page=name,width=size,**info,errors=errors[before:]))
    except Exception as e:results.append(dict(page=name,width=size,error=str(e)[:300]))
   page.screenshot(path=str(out/f'qa-settings-{size}.png'),full_page=True)
+ # Mobile dock stays above content and Home makes every app reachable.
+ page.set_viewport_size({'width':390,'height':700})
+ page.evaluate("openApp('calendar')")
+ page.wait_for_timeout(250)
+ assert page.locator('#sidebar .nav-item:visible').count() == 4, page.locator('#sidebar .nav-item:visible').evaluate_all('(els)=>els.map(e=>e.outerHTML)')
+ dock = page.locator('#sidebar').bounding_box()
+ workspace = page.locator('#workspace').bounding_box()
+ assert workspace['y'] + workspace['height'] <= dock['y'] + 1
+ page.locator('.home-btn').click()
+ assert page.locator('#launcher').is_visible()
+ page.wait_for_timeout(350)
+ assert not page.locator('#sidebar').is_visible()
+ page.screenshot(path=str(out/'home-mobile.png'),full_page=False)
+ page.evaluate("openApp('calendar'); currentDate = new Date(2026,0,31); changeMonth(1)")
+ page.wait_for_timeout(250)
+ assert page.evaluate('currentDate.getMonth()') == 1
+ page.screenshot(path=str(out/'calendar-mobile.png'),full_page=True)
+ page.evaluate("openApp('music'); window.coverClicks=0; audio.pause=()=>window.coverClicks++; Object.defineProperty(audio,'paused',{configurable:true,get:()=>false}); audio.src='/test-audio'")
+ page.locator('#player-art-container').click()
+ assert page.evaluate('window.coverClicks') == 1
+ page.locator('#player-art-container').press('Enter')
+ assert page.evaluate('window.coverClicks') == 2
  # Controlled payloads are injected only into this mocked browser session.
  probes=page.evaluate('''() => {
  window.qaInjection=0;

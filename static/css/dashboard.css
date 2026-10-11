@@ -467,3 +467,40 @@ body {
         display: none;
     }
 }
+
+/* Daily-use shell: dynamic viewport and a compact mobile dock. */
+body { height: 100dvh; }
+#sidebar { box-sizing: border-box; overflow-y: auto; }
+.nav-item { flex-shrink: 0; border: 0; font-family: inherit; }
+.home-btn span { display: none; }
+#workspace, .app-view { min-height: 0; min-width: 0; }
+#launcher { overflow-y: auto; grid-auto-rows: minmax(140px, auto); align-content: start; padding: clamp(24px, 5vw, 72px); gap: 20px; }
+.home-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; padding: 12px 0 28px; }
+.home-heading h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -.05em; }
+.home-heading p { font-size: .7rem; letter-spacing: .2em; color: var(--accent); }
+.home-heading span { color: var(--text-sub); }
+.home-heading .user-placeholder { margin-left: auto; }
+.app-icon-card { min-height: 140px; border-radius: 20px; }
+.app-icon-card:hover { transform: translateY(-3px); }
+.app-header { gap: 12px; flex-wrap: wrap; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+#player-art-container { cursor: pointer; }
+@media (max-width: 768px) {
+ #sidebar { height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); overflow: visible; }
+ #sidebar .nav-item { display: none; }
+ #sidebar > a.nav-item, #sidebar #nav-calendar, #sidebar #nav-notes, #sidebar .home-btn { display: flex; flex: 1; width: auto; min-width: 44px; }
+ #sidebar .home-btn { flex-direction: column; gap: 4px; background: transparent; color: var(--text-main); }
+ .home-btn span { display: block; font-size: 10px; }
+ #sidebar.active + #workspace { height: calc(100dvh - 64px - env(safe-area-inset-bottom)); }
+ .app-view { padding: 12px; padding-bottom: 20px; }
+ #launcher { padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); grid-auto-rows: auto; gap: 12px; }
+ .home-heading { flex-wrap: wrap; gap: 12px; padding-bottom: 12px; }
+ .home-heading .user-placeholder { width: 100%; margin-left: 0; }
+ .app-icon-card { min-height: 120px; height: auto; }
+ .modal-box { box-sizing: border-box; max-height: 85dvh; overflow-y: auto; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+@media (max-width: 768px) { #sidebar > a.nav-item, #sidebar #nav-calendar, #sidebar #nav-notes { flex-direction: column; gap: 4px; text-decoration: none; } #sidebar .nav-item::after { font-size: 10px; content: attr(aria-label); } #sidebar .home-btn::after { content: none; } }
+
+#sidebar:not(.active) { visibility: hidden; pointer-events: none; }

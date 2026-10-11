@@ -40,3 +40,6 @@ alembic==1.18.4
 
 Pillow==12.1.0
 tzdata==2025.2
+
+caldav==2.1.2
+icalendar==6.3.2
