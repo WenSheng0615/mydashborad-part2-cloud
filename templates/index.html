@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>FocusFlow OS</title>
-    <link rel="stylesheet" href="/static/css/theme.css?v=8000">
+    <link rel="stylesheet" href="/static/css/theme.css?v=9000">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
     <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
     <link rel="manifest" href="/static/manifest.json">
@@ -23,7 +23,7 @@
 
     <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
     <link rel="stylesheet" href="/static/css/components.css?v=8000">
-</head>
+<link rel="stylesheet" href="/static/css/workbench.css?v=9000"></head>
 
 <body>
     <script src="/static/js/theme.js?v=8000"></script>
@@ -45,19 +45,19 @@
     <div id="launcher">
         <header class="home-heading"><img src="/static/icons/icon.svg" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div></header>
         <a class="app-icon-card" href="/projects" style="text-decoration:none;color:inherit"><i class="fa-solid fa-layer-group"></i><span>工作空間 / Today</span></a>
-        <div class="app-icon-card" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></div>
-        <div class="app-icon-card" onclick="openApp('drive')"><i
-                class="fa-brands fa-google-drive"></i><span>Drive</span></div>
-        <div class="app-icon-card" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i><span>Notes</span>
-        </div>
-        <div class="app-icon-card" onclick="openApp('calendar')"><i
-                class="fa-solid fa-calendar-days"></i><span>Calendar</span></div>
-        <div class="app-icon-card" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i><span>Tasks</span>
-        </div>
-        <div class="app-icon-card" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i><span>Money</span></div>
-        <div class="app-icon-card" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i><span>Keep</span></div>
-        <div class="app-icon-card" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
-        <div class="app-icon-card" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i><span>Quiz</span></div>
+        <button type="button" class="app-icon-card" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></button>
+        <button type="button" class="app-icon-card" onclick="openApp('drive')"><i
+                class="fa-brands fa-google-drive"></i><span>Drive</span></button>
+        <button type="button" class="app-icon-card" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i><span>Notes</span>
+        </button>
+        <button type="button" class="app-icon-card" onclick="openApp('calendar')"><i
+                class="fa-solid fa-calendar-days"></i><span>Calendar</span></button>
+        <button type="button" class="app-icon-card" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i><span>Tasks</span>
+        </button>
+        <button type="button" class="app-icon-card" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i><span>Money</span></button>
+        <button type="button" class="app-icon-card" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i><span>Keep</span></button>
+        <button type="button" class="app-icon-card" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></button>
+        <button type="button" class="app-icon-card" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i><span>Quiz</span></button>
     </div>
 
     <nav id="sidebar">
@@ -136,6 +136,7 @@
             const nav = document.getElementById('nav-' + name);
             if (view) view.classList.add('active');
             if (nav) nav.classList.add('active');
+            window.updateMobileDock?.(name === 'calendar' ? 'calendar' : null);
 
             if (name === 'drive') applyFilters();
             if (name === 'calendar') initCalendar();
@@ -148,6 +149,8 @@
         }
 
         function goHome() {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
+            window.updateMobileDock?.('home');
             document.getElementById('launcher').classList.remove('hidden');
             document.getElementById('sidebar').classList.remove('active');
             document.getElementById('workspace').classList.remove('active');
@@ -244,6 +247,6 @@
             });
         }
     </script>
-</body>
+{% include 'partials/mobile_dock.html' %}<script src="/static/js/navigation.js?v=9000"></script></body>
 
 </html>

@@ -30,6 +30,9 @@ with sync_playwright() as p:
  inventory=page.evaluate('''() => [...document.querySelectorAll('[onclick]')].map(e=>({call:e.getAttribute('onclick'),text:e.textContent.trim(),id:e.id})).filter(x=>{const m=x.call.match(/^([A-Za-z_$][\\w$]*)\\(/);return m && typeof window[m[1]]!=='function';})''')
  for size in [1440,390]:
   page.set_viewport_size({'width':size,'height':900})
+  expected_accent = '#e63946' if size == 1440 else '#8acbbd'
+  assert page.evaluate("getComputedStyle(document.body).getPropertyValue('--accent').trim()") == expected_accent
+  assert page.locator('.mobile-dock').is_visible() == (size == 390)
   for name in ['notes','drive','calendar','tasks','money','chat','music','quiz','settings']:
    before=len(errors)
    try:
@@ -43,14 +46,21 @@ with sync_playwright() as p:
  page.set_viewport_size({'width':390,'height':700})
  page.evaluate("openApp('calendar')")
  page.wait_for_timeout(250)
- assert page.locator('#sidebar .nav-item:visible').count() == 4, page.locator('#sidebar .nav-item:visible').evaluate_all('(els)=>els.map(e=>e.outerHTML)')
- dock = page.locator('#sidebar').bounding_box()
+ assert page.locator('.mobile-dock a:visible').count() == 3
+ assert page.locator('#sidebar .nav-item:visible').count() == 0
+ dock = page.locator('.mobile-dock').bounding_box()
  workspace = page.locator('#workspace').bounding_box()
  assert workspace['y'] + workspace['height'] <= dock['y'] + 1
- page.locator('.home-btn').click()
+ page.locator('[data-dock=home]').click()
  assert page.locator('#launcher').is_visible()
  page.wait_for_timeout(350)
  assert not page.locator('#sidebar').is_visible()
+ assert page.locator('[data-dock=home]').get_attribute('aria-current') == 'page'
+ page.locator('[data-dock=calendar]').click()
+ page.wait_for_timeout(250)
+ assert page.locator('[data-dock=calendar]').get_attribute('aria-current') == 'page'
+ page.locator('[data-dock=home]').click()
+ page.wait_for_timeout(350)
  page.screenshot(path=str(out/'home-mobile.png'),full_page=False)
  page.evaluate("openApp('calendar'); currentDate = new Date(2026,0,31); changeMonth(1)")
  page.wait_for_timeout(250)
