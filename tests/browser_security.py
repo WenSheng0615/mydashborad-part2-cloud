@@ -30,7 +30,7 @@ with sync_playwright() as p:
  inventory=page.evaluate('''() => [...document.querySelectorAll('[onclick]')].map(e=>({call:e.getAttribute('onclick'),text:e.textContent.trim(),id:e.id})).filter(x=>{const m=x.call.match(/^([A-Za-z_$][\\w$]*)\\(/);return m && typeof window[m[1]]!=='function';})''')
  for size in [1440,390]:
   page.set_viewport_size({'width':size,'height':900})
-  expected_accent = '#e63946' if size == 1440 else '#8acbbd'
+  expected_accent = '#8acbbd'
   assert page.evaluate("getComputedStyle(document.body).getPropertyValue('--accent').trim()") == expected_accent
   assert page.locator('.mobile-dock').is_visible() == (size == 390)
   for name in ['notes','drive','calendar','tasks','money','chat','music','quiz','settings']:

@@ -6,26 +6,27 @@
     --radius-card: 12px;
     --radius-dialog: 16px;
     --space-unit: 4px;
-    --on-accent: #fff;
+    --on-accent: #142522;
     --warning: #efbb92;
-    --bg-color: #121212;
-    --card-bg: #1e1e1e;
-    --sidebar-bg: #000000;
-    --accent: #e63946;
-    --text-main: #ffffff;
-    --text-sub: #b0b0b0;
-    --border-color: #333;
-    --input-bg: #2a2a2a;
-    --bg-hover: #333333;
-    --accent-dim: rgba(230, 57, 70, 0.15);
-    --accent-shadow: rgba(230, 57, 70, 0.4);
-    --today-bg: rgba(230, 57, 70, 0.15);
+    --bg-color: #111619;
+    --card-bg: #1a2125;
+    --sidebar-bg: #141a1d;
+    --accent: #8acbbd;
+    --text-main: #e2e9e9;
+    --text-sub: #a0afb5;
+    --border-color: #334046;
+    --input-bg: #252e33;
+    --bg-hover: #29363b;
+    --accent-dim: rgba(138, 203, 189, 0.15);
+    --accent-shadow: rgba(138, 203, 189, 0.2);
+    --today-bg: rgba(138, 203, 189, 0.15);
     --scroll-track: #1e1e1e;
     --scroll-thumb: #444;
     --range-bg: #404040;
 }
 
 body.light-mode {
+    --on-accent: #fff;
     color-scheme: light;
     --warning: #8a430d;
     --bg-color: #f0f2f5;

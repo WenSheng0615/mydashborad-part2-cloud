@@ -1,11 +1,11 @@
 /* Production workbench shell: existing app controls and data remain in place. */
 .mobile-dock{display:none}button.app-icon-card{font:inherit;color:var(--text-main)}
+button.primary,.btn-confirm{color:var(--on-accent)}
+.nav-item.active{color:var(--on-accent)}
 @media(max-width:768px){
-body:not(.light-mode){color-scheme:dark;--on-accent:#142522;--bg-color:#111619;--card-bg:#1a2125;--sidebar-bg:#141a1d;--accent:#8acbbd;--text-main:#e2e9e9;--text-sub:#a0afb5;--border-color:#334046;--input-bg:#252e33;--bg-hover:#29363b;--accent-dim:rgba(138,203,189,.15);--accent-shadow:rgba(138,203,189,.2);--today-bg:rgba(138,203,189,.15)}
 #launcher .app-icon-card{border-radius:12px;box-sizing:border-box}
 #launcher .app-icon-card i{background:var(--accent-dim);border-radius:10px}
 .home-heading{border-bottom:1px solid var(--border-color);margin-bottom:12px}.home-heading h1{font-size:28px}.home-heading p{letter-spacing:.14em}
-button.primary,.btn-confirm{color:var(--on-accent)}
 :root{--mobile-dock-height:calc(68px + env(safe-area-inset-bottom,0px))}
 #sidebar,#sidebar.active{display:none!important}
 #launcher{height:calc(100dvh - var(--mobile-dock-height));grid-template-columns:repeat(3,minmax(0,1fr));padding:22px 16px 28px;gap:10px}
