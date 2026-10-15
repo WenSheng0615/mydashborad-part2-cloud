@@ -37,7 +37,7 @@ window.FlowModules = (() => {
         }
     }
     async function loadConnections() {
-        if(!document.getElementById('module-list'))return;
+        if(!document.getElementById('module-list') || !entries)return;
         if(connectionRequest)return connectionRequest;
         connectionRequest=(async()=>{
             const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),10000);
@@ -158,7 +158,7 @@ window.FlowModules = (() => {
             state.textContent='設定會跟隨帳號；停用不會刪除資料或撤銷外部服務授權。';
         }catch(_){state.textContent='暫時無法載入模組設定，請重試。';}finally{clearTimeout(timer);}
     }
-    document.getElementById('module-reload')?.addEventListener('click',()=>{api.ready=refresh();loadConnections();});
+    document.getElementById('module-reload')?.addEventListener('click',()=>{api.ready=refresh().then(loadConnections);});
     document.getElementById('module-search')?.addEventListener('input',e=>{query=e.target.value.trim().toLocaleLowerCase();render();});
     document.querySelectorAll('[data-module-filter]').forEach(button=>button.addEventListener('click',()=>{filter=button.dataset.moduleFilter;render();}));
     document.getElementById('module-detail-close')?.addEventListener('click',()=>document.getElementById('module-detail').close());
