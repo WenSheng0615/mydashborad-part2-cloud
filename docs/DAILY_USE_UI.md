@@ -2,7 +2,17 @@
 
 Branch: `fix/daily-use-interface`, based on `v0.2.0-homecloud-foundation`.
 
-## Changes
+## Current status — 2026-10-15
+
+Deployed application checkpoint: `19c4763`. Desktop retains its original layout; desktop/mobile share graphite/teal dark tokens. Mobile has three destinations: Home, Workspace, Calendar. The 2026-10-13 icon uses a teal F on graphite; Apple touch (180) and manifest PNGs (192/512) were verified over HTTPS.
+
+Private owner-scoped iCloud CalDAV authenticated successfully on 2026-10-13 and returned three events for that month. Only read-only retrieval was verified; no claim of write support or complete recurrence/device coverage. The white/blue theme and the complete redesigned App surfaces/mini-player remain standalone prototypes.
+
+Real-device iPhone keyboard, Safari toolbar and safe-area verification is still pending. Browser regression uses Chromium with isolated/mocked data; it does not replace real Google consent or iPhone testing.
+
+The following initial implementation notes are historical; where they differ, this dated status takes precedence.
+
+## Initial changes
 - Mobile dock: Workspace, Notes, Calendar, All Apps. Home remains scrollable.
 - Dynamic viewport and safe-area padding protect navigation from mobile browser chrome.
 - Local FocusFlow vector logo and PNG icons (192/512/180 px); Apple touch icon.

@@ -40,3 +40,21 @@ def test_invalid_backup_closes_connections_and_removes_destination(tmp_path, rev
     source.rename(tmp_path/'renamed.db')
     destination.write_bytes(b'reusable')
     destination.unlink()
+
+
+def test_backup_selection_skips_newer_empty_or_invalid_files(tmp_path):
+    import os
+    from scripts.verify_backup import select, digest
+    good=tmp_path/'focusflow-valid.db'
+    migrate(good)
+    empty=tmp_path/'focusflow-empty.db';empty.touch()
+    bad=tmp_path/'focusflow-invalid.db';bad.write_bytes(b'not sqlite')
+    for order,path in enumerate((good,empty,bad), start=1):
+        os.utime(path,(order,order))
+    chosen,checksum=select(tmp_path)
+    assert chosen==good.resolve()
+    assert checksum==digest(good)
+    assert empty.exists() and bad.read_bytes()==b'not sqlite'
+    good.unlink()
+    with pytest.raises(RuntimeError,match='No verified backup'):
+        select(tmp_path)

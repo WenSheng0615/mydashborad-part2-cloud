@@ -39,3 +39,12 @@ Home/App shell、Global Search 擴充、GitHub integration、AI shared capabilit
 ## Sprint 3
 
 Firebase = Optional Attachment / Storage Integration；見 [Daily-use gate](DAILY_USE_CHECKLIST.md) 及 [Backup/Restore](BACKUP_RESTORE.md)。同機快照不等於災難復原。
+
+
+## Deployed reality — 2026-10-15
+
+Private HomeCloud HTTPS is provided by Tailscale Serve → nginx → localhost-only Docker app. This is tailnet access, not an unrestricted public website. Current UI checkpoint is `19c4763`; shared graphite/teal palette with mobile-only layout/navigation changes.
+
+Google/iCloud calendar aggregation is implemented: Google primary calendar plus optional owner-scoped read-only iCloud CalDAV. Real iCloud authorization/read succeeded on 2026-10-13. Credentials remain runtime-only. Provider event aggregation is not a Project Event domain, persistent synchronization, deduplication or two-way sync.
+
+Scheduled snapshots now run on the host using SQLite Backup API from a read-only source. The snapshot is checked for integrity, foreign keys and supported revision before atomic publication. Windows copies require SQLite and checksum validation. These maintenance scripts do not change the app schema or introduce a new service. See [reliability evidence](RELIABILITY_2026-10-15.md).

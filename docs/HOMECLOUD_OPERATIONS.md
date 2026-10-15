@@ -334,3 +334,19 @@ Step 8A 完成後，
 HomeCloud 進入 Infrastructure Freeze / Maintenance Mode。
 
 下一階段開發主線回到 FocusFlow Step 4 Daily Driver。
+
+
+## Maintenance correction — 2026-10-15
+
+This dated section supersedes conflicting earlier operations notes. Application checkpoint `19c4763`, server branch `sprint-4-daily-driver`. DHCP assigned guest LAN address 192.168.46.131 during this session; it is not a fixed fallback address. Prefer the Tailscale address when reachable; inspect VMware/DHCP for the current LAN address when tailnet access fails.
+
+- Disk: 86% → 57%, available ~7.7 GB, by removing explicitly selected obsolete FocusFlow image tags and unused builder cache. Running app/Redis and data volumes were retained. Kept current `focusflow-icons:19c4763` and rollback `focusflow-rollback:pre-icons-20261013` (also tagged `focusflow-palette:5134925`). Image layer sizes are shared and must not be summed as disk usage.
+- Windows current power plan: AC lid action changed from Sleep to Do nothing. This is a mitigation; vmnat.exe crash trigger is not conclusively proven or permanently fixed. Do not claim service Running implies gateway reachability.
+- Root disk is 19 GB inside a 40 GB VM disk. No LVM/filesystem expansion performed. Future capacity decisions require a separate verified change.
+- Host backup wrapper now publishes only a verified complete snapshot. Health backup freshness selects a SQLite-verified snapshot; an empty latest file no longer counts as healthy. Monitoring script syntax checked; outbound alert path was not manually invoked.
+- Windows second-copy script now verifies SQLite/SHA256 before final publication; SSH/SCP have keepalive failure bounds. Task execution limit is five minutes. Interactive login/power conditions remain limitations.
+- No automatic retention deletion in the revised copy/backup scripts; review retention with actual backup size rather than deleting during repair.
+
+Use `df -h /` and `docker system df` before building. Maintain current + one known rollback; remove obsolete tags explicitly after verification. Builder-only cache cleanup follows [Docker documentation](https://docs.docker.com/reference/cli/docker/builder/prune/); do not use broad volume cleanup.
+
+See [RELIABILITY_2026-10-15.md](RELIABILITY_2026-10-15.md) for evidence and remaining checks.

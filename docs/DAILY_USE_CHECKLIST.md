@@ -44,3 +44,15 @@ Sprint 4 建議：異機加密備份與 restore cutover、完整 browser failure
 ## Final tests
 
 59 passed / 304 warnings；原 57 tests 保持通過。Browser core runner exit 0。警告增加來自新增流程，未新增 schema。
+
+
+## Evidence update — 2026-10-15
+
+- 66 tests passed / 308 existing deprecation warnings after adding valid-backup selection regression.
+- The deployed mobile dock now has Home / Workspace / Calendar; desktop retains its original layout and shares the graphite/teal palette.
+- Real owner-scoped iCloud CalDAV read succeeded on 2026-10-13; attachment reliability is still not claimed.
+- Verified actual SQLite snapshot, isolated restore of all 16 tables and checked Windows second copy. Scheduled run after this maintenance remains to be observed.
+- Disk reduced from 86% to 57% without restarting the app. VMware NAT stability still requires observation after correcting AC lid behavior.
+- Real iPhone keyboard/Safari/safe-area and complete multi-user/form-error browser acceptance remain open.
+
+Decision remains conditional single-user daily use, not a guarantee suitable for an only copy of irreplaceable data.

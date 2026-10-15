@@ -68,3 +68,12 @@ Canonical HTTPS 完整登入與 provider readiness：在新 OAuth client 完成�
 ## Sprint 3
 
 Firebase = Optional Attachment / Storage Integration；見 [Daily-use gate](DAILY_USE_CHECKLIST.md) 及 [Backup/Restore](BACKUP_RESTORE.md)。同機快照不等於災難復原。
+
+
+## Current execution point — 2026-10-15
+
+Sprint 1–3 and the versioned Core baseline are complete. The active product phase is Phase 4 / Daily Driver, with basic keyword Search and HomeCloud production foundations already present. Note/Local Task context is implemented; Files/Events context, GitHub and AI remain future work.
+
+Reliability closure is recorded in [RELIABILITY_2026-10-15.md](RELIABILITY_2026-10-15.md): disk cleanup, atomic verified backup publication, actual restore drill, checked Windows second copy, and AC lid policy. This does not claim permanent resolution of VMware NAT crashes or disaster recovery.
+
+Next: observe the next scheduled backups and network stability; then run real iPhone keyboard/safe-area acceptance and address reproduced daily-use blockers. Do not expand to GitHub/AI or deploy the white/blue prototype as part of this work.

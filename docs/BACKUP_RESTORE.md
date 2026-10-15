@@ -61,3 +61,14 @@ Production backup 操作、排程與 monitoring 詳情請參考：
 
 原本 Sprint 3 的 manual backup / restore 流程仍保留，
 作為開發環境與 isolated restore drill 的參考。
+
+
+## Verified maintenance update — 2026-10-15
+
+The host timer still invokes `/home/wensheng/scripts/backup-focusflow.sh`, now sourced from repository `scripts/backup-focusflow.sh`. It uses a lock, private staging directory and mode 0600 files; it calls the existing SQLite snapshot/verify tool and only publishes a final filename after integrity, FK and revision validation. Publication refuses an existing destination. Failure removes staging output. No scheduled retention deletion is performed by this revised wrapper; old snapshots are currently tiny and retained pending an explicit retention review.
+
+One pre-existing zero-byte snapshot dated 2026-10-15 was found. The historical journal reported success without sufficient detail to establish why it was empty. The invalid file was retained; selectors and monitoring now ignore invalid snapshots. Windows helper `scripts/backup-homecloud.ps1` selects a verified remote snapshot, checks SSH/SCP exit codes, downloads to a unique partial file, checks SQLite and SHA256, and only then moves it to a final filename. It fails rather than trusting an already-existing invalid copy. Interrupted partial downloads are cleaned up. The script uses the project venv Python and therefore depends on the saved project path.
+
+Manual schedule-equivalent run, failure drill and isolated restore all passed. The restored snapshot matched all 16 SQLite tables; domain counts: Workspace=2, Project=0, Note=2, Task=0. Empty Project/Task tables are not evidence of real populated production coverage; populated regression tests remain separate. Windows second copy was checked successfully. Neither production DB nor schema was replaced.
+
+Next scheduled execution must still be observed. A Windows copy is not geographic off-site storage or host-disaster protection.

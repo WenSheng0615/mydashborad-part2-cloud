@@ -236,3 +236,10 @@ Redis 僅存在 Docker internal network。
 HomeCloud Production Foundation 的目標是提供穩定的
 私人 self-hosted environment，
 供 FocusFlow 日常使用與後續開發驗證。
+
+
+## Current checkpoint — 2026-10-15
+
+Application release is `19c4763` on server branch `sprint-4-daily-driver`, image `focusflow-icons:19c4763` (also tagged `focusflow-focusflow:latest`). Rollback image retained: `focusflow-rollback:pre-icons-20261013`. Desktop/mobile share the dark palette; layout redesign is mobile scoped. iCloud runtime configuration has been supplied privately and read-only authorization was verified.
+
+Reliability maintenance changes only host maintenance scripts/docs/tests; no app container rebuild, DB migration or production data restore is required. Private Tailscale Serve access boundary remains unchanged.
