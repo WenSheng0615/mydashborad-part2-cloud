@@ -64,7 +64,9 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 assert page.request.get(base+'/api/notes/').status==403
                 page.get_by_role('checkbox',name='啟用行事曆',exact=True).uncheck()
                 expect(page.locator('[data-dock="calendar"]')).not_to_be_visible()
-                page.reload();page.wait_for_load_state('networkidle')
+                page.goto(base+'/projects');page.wait_for_load_state('networkidle')
+                expect(page.locator('[data-dock="calendar"]')).not_to_be_visible()
+                page.goto(base+'/');page.wait_for_load_state('networkidle')
                 expect(page.locator('[data-module-id="notes"].app-icon-card')).not_to_be_visible()
                 page.evaluate("openApp('notes')")
                 expect(page.locator('#alert-modal')).to_be_visible()

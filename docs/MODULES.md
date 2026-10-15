@@ -37,3 +37,10 @@ Backup verification supports both known 0004 and 0005 revisions, verifies new pr
 ## Verification
 
 See tests/test_modules.py (owner isolation, Core protection, strict payloads, data preservation, disabled router/WebSocket rejection, guest preference merge), migration/backup regressions and tests/browser_core.py (real isolated browser workflow). Browser security regression continues to cover desktop/mobile App panels and injection boundaries. Real iPhone keyboard behavior is still pending. 79 pytest tests passed (386 existing-style deprecation warnings). JavaScript syntax checks, real isolated browser Core/module workflow and mocked nine-panel desktop/mobile regression passed; git diff --check passed. Migration tests cover old row preservation, empty preference-table downgrade and refusal to discard saved preferences; backup tests preserve disabled choices across snapshots. Deployment results will be recorded after execution.
+
+
+## HomeCloud rollout — 2026-10-15
+
+Release `0de1d0d` deployed after an isolated migration of a production snapshot. All 15 pre-existing non-revision tables compared equal before/after; new preference table empty. Production migration to 0005 passed preflight/integrity/FK checks. Cutover snapshot retained privately as `focusflow-20261015-pre-modules.db`, with pre-module image `focusflow-icons:19c4763` available for a matched rollback. No restore was required.
+
+A post-upgrade snapshot and Windows copy both passed SQLite/SHA256 verification; root disk remained 57% used. Live HTTPS health and unauthenticated module entry were checked. One networkidle-based browser navigation timed out; a subsequent DOM-loaded check reached the manager with no JavaScript errors. User-authenticated toggle behavior was tested in isolated real SQLite/browser E2E, not with the owner's production credentials. A follow-up includes shared module visibility CSS on the Workspace page, covered by cross-page E2E.
