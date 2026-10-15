@@ -206,3 +206,14 @@ input:checked+.slider:before {
     align-items: center;
     height: 150px;
 }
+
+/* The shell owns the viewport; Settings owns its full content scroll at every size. */
+#view-settings {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+}
+#view-settings > .app-header,
+#view-settings > .settings-grid {
+    flex-shrink: 0;
+}

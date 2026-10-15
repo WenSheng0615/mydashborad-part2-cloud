@@ -3,6 +3,9 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 from jinja2 import Environment, FileSystemLoader
 ROOT=Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0,str(ROOT))
+from services.module_service import CATALOG
 import tempfile
 out=Path(tempfile.mkdtemp(prefix='focusflow-browser-'))
 env=Environment(loader=FileSystemLoader(str(ROOT/'templates')),autoescape=True)
@@ -22,6 +25,7 @@ with sync_playwright() as p:
    if asset.is_relative_to(ROOT/'static') and asset.is_file():return route.fulfill(path=str(asset))
    return route.fulfill(status=404,body='Not found')
   data={'items':[],'files':[],'notes':[],'events':[],'banks':[],'questions':[],'sessions':[],'messages':[],'todo':[],'doing':[],'done':[],'transactions':[],'categories':[],'total_income':0,'total_expense':0,'balance':0}
+  if '/api/modules' in url:data={'modules':[dict(module,enabled=True) for module in CATALOG]}
   if '/auth/user' in url:data={'name':'QA user','email':'qa@example.test','is_guest':False,'logged_in':True}
   if '/drive/storage' in url:data={'total':1000,'used':100,'trash':0}
   route.fulfill(status=200,json=data)
@@ -41,6 +45,17 @@ with sync_playwright() as p:
     info=page.locator('#view-'+name).evaluate('''e=>({visible:getComputedStyle(e).display!=='none',panelWidth:e.clientWidth,scroll:e.scrollWidth,overflow:e.scrollWidth>e.clientWidth+2})''')
     results.append(dict(page=name,width=size,**info,errors=errors[before:]))
    except Exception as e:results.append(dict(page=name,width=size,error=str(e)[:300]))
+  # A real wheel gesture must scroll Settings, including desktop's clipped shell.
+  settings=page.locator('#view-settings')
+  settings.evaluate('(e)=>e.scrollTop=0')
+  settings.hover();page.mouse.wheel(0,1200);page.wait_for_timeout(250)
+  assert settings.evaluate('(e)=>e.scrollTop>0')
+  page.get_by_role('checkbox',name='啟用學習測驗',exact=True).scroll_into_view_if_needed()
+  assert page.get_by_role('checkbox',name='啟用學習測驗',exact=True).is_visible()
+  settings.evaluate('(e)=>e.scrollTop=e.scrollHeight')
+  about=page.locator('.about-card').bounding_box()
+  viewport=settings.bounding_box()
+  assert about['y']+about['height'] <= viewport['y']+viewport['height']+1
   page.screenshot(path=str(out/f'qa-settings-{size}.png'),full_page=True)
  # Mobile dock stays above content and Home makes every app reachable.
  page.set_viewport_size({'width':390,'height':700})
