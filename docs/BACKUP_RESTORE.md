@@ -72,3 +72,8 @@ One pre-existing zero-byte snapshot dated 2026-10-15 was found. The historical j
 Manual schedule-equivalent run, failure drill and isolated restore all passed. The restored snapshot matched all 16 SQLite tables; domain counts: Workspace=2, Project=0, Note=2, Task=0. Empty Project/Task tables are not evidence of real populated production coverage; populated regression tests remain separate. Windows second copy was checked successfully. Neither production DB nor schema was replaced.
 
 Next scheduled execution must still be observed. A Windows copy is not geographic off-site storage or host-disaster protection.
+
+
+## Module preference revision
+
+The module-management release adds additive revision 0005_module_preferences. The updated verifier accepts known 0004 and 0005 snapshots and checks the new preference schema for 0005. Deploy the updated host backup helper before switching the production DB; old snapshots remain restorable to a separate file. Downgrade with saved preferences is refused to prevent silent preference loss. See [MODULES.md](MODULES.md).

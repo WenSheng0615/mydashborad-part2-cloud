@@ -14,9 +14,9 @@ def test_fresh_repeat_and_model_parity(tmp_path):
     migrate(path)
     migrate(path)
     with sqlite3.connect(path) as conn:
-        assert conn.execute("select version_num from alembic_version").fetchone()[0] == "0004_daily_workspace"
+        assert conn.execute("select version_num from alembic_version").fetchone()[0] == "0005_module_preferences"
         assert conn.execute("pragma integrity_check").fetchone()[0] == "ok"
-        assert len(conn.execute("select name from sqlite_master where type='table'").fetchall()) == 16
+        assert len(conn.execute("select name from sqlite_master where type='table'").fetchall()) == 17
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.attributes["database_url"] = f"sqlite:///{path.as_posix()}"
     command.check(cfg)
@@ -94,3 +94,27 @@ def test_legacy_session_and_quiz_columns(tmp_path):
         assert conn.execute("SELECT content, tag FROM quiz_questions").fetchone() == ("keep", "")
         assert "expires_at" in {r[1] for r in conn.execute("PRAGMA table_info(sessions)")}
         assert "ix_sessions_expires_at" in {r[1] for r in conn.execute("PRAGMA index_list(sessions)")}
+
+
+def test_module_migration_preserves_legacy_data_and_downgrade_guard(tmp_path):
+    path=tmp_path/'module-upgrade.db'
+    migrate(path,'0004_daily_workspace')
+    with sqlite3.connect(path) as db:
+        db.execute("INSERT INTO notes (id,user_email,title,content) VALUES ('n','owner','Before migration','Keep this')")
+        before=db.execute('SELECT * FROM notes').fetchall()
+    migrate(path)
+    with sqlite3.connect(path) as db:
+        assert db.execute('SELECT * FROM notes').fetchall()==before
+        assert db.execute('SELECT count(*) FROM module_preferences').fetchone()[0]==0
+        assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
+    cfg=Config(str(ROOT/'alembic.ini'))
+    cfg.attributes['database_url']=f'sqlite:///{path.as_posix()}'
+    command.downgrade(cfg,'0004_daily_workspace')
+    migrate(path)
+    with sqlite3.connect(path) as db:
+        db.execute("INSERT INTO module_preferences VALUES ('owner','notes',0)")
+    with pytest.raises(RuntimeError,match='Module preferences exist'):
+        command.downgrade(cfg,'0004_daily_workspace')
+    with sqlite3.connect(path) as db:
+        assert db.execute('SELECT enabled FROM module_preferences').fetchone()[0]==0
+        assert db.execute('SELECT * FROM notes').fetchall()==before

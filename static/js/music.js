@@ -362,3 +362,7 @@ function renderList(div, items, type='search') {
     });
 }
 function closePlaylist(){document.getElementById('playlist-detail').style.display='none';document.getElementById('playlists-list').style.display='';}
+
+window.addEventListener('modules-changed', () => {
+    if (!FlowModules.isEnabled('music') && audio) audio.pause();
+});

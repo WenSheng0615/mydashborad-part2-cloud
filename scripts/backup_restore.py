@@ -12,8 +12,12 @@ def verify(path):
         if c.execute('PRAGMA foreign_key_check').fetchall():
             raise RuntimeError('Foreign keys failed')
         revision=c.execute('SELECT version_num FROM alembic_version').fetchall()
-        if revision != [('0004_daily_workspace',)]:
+        if revision not in ([('0004_daily_workspace',)], [('0005_module_preferences',)]):
             raise RuntimeError('Unsupported revision; review restore procedure')
+        if revision == [('0005_module_preferences',)]:
+            columns = {row[1] for row in c.execute('PRAGMA table_info(module_preferences)')}
+            if not {'user_email', 'module_id', 'enabled'}.issubset(columns):
+                raise RuntimeError('Module preference schema missing')
         return {t:c.execute('SELECT count(*) FROM '+t).fetchone()[0]
                 for t in ('workspaces','projects','notes','tasks')}
 

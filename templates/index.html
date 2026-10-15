@@ -23,7 +23,7 @@
 
     <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
     <link rel="stylesheet" href="/static/css/components.css?v=8000">
-<link rel="stylesheet" href="/static/css/workbench.css?v=9001"></head>
+<link rel="stylesheet" href="/static/css/workbench.css?v=9001"><link rel="stylesheet" href="/static/css/modules.css?v=1"></head>
 
 <body>
     <script src="/static/js/theme.js?v=8000"></script>
@@ -43,35 +43,35 @@
         </div>
     </div>
     <div id="launcher">
-        <header class="home-heading"><img src="/static/icons/icon.svg?v=20261013" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div></header>
+        <header class="home-heading"><img src="/static/icons/icon.svg?v=20261013" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div><button type="button" class="home-manage" onclick="openApp('settings')">管理 App</button></header>
         <a class="app-icon-card" href="/projects" style="text-decoration:none;color:inherit"><i class="fa-solid fa-layer-group"></i><span>工作空間 / Today</span></a>
-        <button type="button" class="app-icon-card" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></button>
-        <button type="button" class="app-icon-card" onclick="openApp('drive')"><i
+        <button type="button" class="app-icon-card" data-module-id="music" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></button>
+        <button type="button" class="app-icon-card" data-module-id="drive" onclick="openApp('drive')"><i
                 class="fa-brands fa-google-drive"></i><span>Drive</span></button>
-        <button type="button" class="app-icon-card" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i><span>Notes</span>
+        <button type="button" class="app-icon-card" data-module-id="notes" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i><span>Notes</span>
         </button>
-        <button type="button" class="app-icon-card" onclick="openApp('calendar')"><i
+        <button type="button" class="app-icon-card" data-module-id="calendar" onclick="openApp('calendar')"><i
                 class="fa-solid fa-calendar-days"></i><span>Calendar</span></button>
-        <button type="button" class="app-icon-card" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i><span>Tasks</span>
+        <button type="button" class="app-icon-card" data-module-id="tasks" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i><span>Tasks</span>
         </button>
-        <button type="button" class="app-icon-card" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i><span>Money</span></button>
-        <button type="button" class="app-icon-card" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i><span>Keep</span></button>
-        <button type="button" class="app-icon-card" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></button>
-        <button type="button" class="app-icon-card" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i><span>Quiz</span></button>
+        <button type="button" class="app-icon-card" data-module-id="money" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i><span>Money</span></button>
+        <button type="button" class="app-icon-card" data-module-id="chat" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i><span>Keep</span></button>
+        <button type="button" class="app-icon-card" data-module-id="settings" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></button>
+        <button type="button" class="app-icon-card" data-module-id="quiz" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i><span>Quiz</span></button>
     </div>
 
     <nav id="sidebar">
         <a class="nav-item" href="/projects" aria-label="工作空間" title="工作空間 / Today"><i class="fa-solid fa-layer-group"></i></a>
-        <div class="nav-item" id="nav-music" onclick="openApp('music')"><i class="fa-solid fa-music"></i></div>
-        <div class="nav-item" id="nav-drive" onclick="openApp('drive')"><i class="fa-brands fa-google-drive"></i></div>
-        <div class="nav-item" id="nav-notes" aria-label="筆記" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i></div>
-        <div class="nav-item" id="nav-calendar" aria-label="行事曆" onclick="openApp('calendar')"><i class="fa-solid fa-calendar-days"></i>
+        <div class="nav-item" id="nav-music" data-module-id="music" onclick="openApp('music')"><i class="fa-solid fa-music"></i></div>
+        <div class="nav-item" id="nav-drive" data-module-id="drive" onclick="openApp('drive')"><i class="fa-brands fa-google-drive"></i></div>
+        <div class="nav-item" id="nav-notes" data-module-id="notes" aria-label="筆記" onclick="openApp('notes')"><i class="fa-solid fa-note-sticky"></i></div>
+        <div class="nav-item" id="nav-calendar" data-module-id="calendar" aria-label="行事曆" onclick="openApp('calendar')"><i class="fa-solid fa-calendar-days"></i>
         </div>
-        <div class="nav-item" id="nav-tasks" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i></div>
-        <div class="nav-item" id="nav-money" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i></div>
-        <div class="nav-item" id="nav-chat" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i></div>
-        <div class="nav-item" id="nav-settings" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i></div>
-        <div class="nav-item" id="nav-quiz" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i></div>
+        <div class="nav-item" id="nav-tasks" data-module-id="tasks" onclick="openApp('tasks')"><i class="fa-solid fa-check-double"></i></div>
+        <div class="nav-item" id="nav-money" data-module-id="money" onclick="openApp('money')"><i class="fa-solid fa-wallet"></i></div>
+        <div class="nav-item" id="nav-chat" data-module-id="chat" onclick="openApp('chat')"><i class="fa-solid fa-inbox"></i></div>
+        <div class="nav-item" id="nav-settings" data-module-id="settings" onclick="openApp('settings')"><i class="fa-solid fa-gear"></i></div>
+        <div class="nav-item" id="nav-quiz" data-module-id="quiz" onclick="openApp('quiz')"><i class="fa-solid fa-graduation-cap"></i></div>
         <button class="nav-item home-btn" onclick="goHome()" aria-label="所有應用程式"><i class="fa-solid fa-th-large"></i><span>所有 App</span></button>
     </nav>
 
@@ -88,14 +88,15 @@
     </main>
 
     <script src="/static/js/ui.js?v=5000"></script>
+    <script src="/static/js/modules.js?v=1"></script>
     <script src="/static/js/drive.js?v=6001"></script>
     <script src="/static/js/music.js?v=8000"></script>
     <script src="/static/js/calendar.js?v=8000"></script>
-    <script src="/static/js/notes.js?v=5000"></script>
+    <script src="/static/js/notes.js?modules=1&v=5000"></script>
     <script src="/static/js/tasks.js?v=7001"></script>
-    <script src="/static/js/money.js?v=7000"></script>
-    <script src="/static/js/chat.js?v=5000"></script>
-    <script src="/static/js/settings.js?v=4001"></script>
+    <script src="/static/js/money.js?modules=1&v=7000"></script>
+    <script src="/static/js/chat.js?modules=1&v=5000"></script>
+    <script src="/static/js/settings.js?modules=1&v=4001"></script>
     <script src="/static/js/quiz.js?v=4002"></script>
 
     <script>
@@ -118,7 +119,12 @@
             alertCallback = null;
         }
 
-        function openApp(name) {
+        async function openApp(name) {
+            await window.FlowModules.ready;
+            if (!FlowModules.isEnabled(name)) {
+                showAlert('App 已停用', '請至設定的模組管理重新啟用。');
+                return;
+            }
             // ✅ 訪客權限攔截
             const googleApps = ['drive', 'music', 'calendar', 'tasks'];
             if (isGuest && googleApps.includes(name)) {
@@ -146,6 +152,7 @@
             if (name === 'money') loadMoney();
             if (name === 'settings') initSettings();
             if (name === 'quiz') initQuiz();
+            if (name === 'chat') initChat();
         }
 
         function goHome() {
@@ -237,7 +244,7 @@
             }
         });
 
-        var tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.body.appendChild(tag);
+
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

@@ -77,3 +77,8 @@ Sprint 1–3 and the versioned Core baseline are complete. The active product ph
 Reliability closure is recorded in [RELIABILITY_2026-10-15.md](RELIABILITY_2026-10-15.md): disk cleanup, atomic verified backup publication, actual restore drill, checked Windows second copy, and AC lid policy. This does not claim permanent resolution of VMware NAT crashes or disaster recovery.
 
 Next: observe the next scheduled backups and network stability; then run real iPhone keyboard/safe-area acceptance and address reproduced daily-use blockers. Do not expand to GitHub/AI or deploy the white/blue prototype as part of this work.
+
+
+## Direction adjustment — selectable built-in Apps
+
+User confirmed a future HomeCloud module catalog analogous to selecting extensions. First implement trusted built-in App management and preserve Core; then design versioned trusted packages, only later third-party installation/update/isolation. This stage does not start GitHub, AI, microservices or a new frontend framework. Details and acceptance evidence: [MODULES.md](MODULES.md).

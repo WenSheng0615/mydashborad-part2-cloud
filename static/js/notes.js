@@ -1,7 +1,7 @@
 let notesData = [];
 let noteLayout = 'grid';
 let editingNoteId = null;
-document.addEventListener('DOMContentLoaded', loadNotes);
+// Loaded on demand by openApp, after module preferences.
 async function loadNotes() {
     try { notesData = (await FlowUI.request('/api/notes/')).notes || []; renderNotes(); }
     catch (error) { FlowUI.error(error); }

@@ -1,7 +1,7 @@
 import os
 import config  # Load environment before routers read configuration.
 import json
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, FileResponse
@@ -28,6 +28,7 @@ def restore_credentials_from_env():
 
 restore_credentials_from_env()
 
+from routers.modules import router as modules_router, require_enabled
 from services.logging_service import configure_access_log
 configure_access_log()
 app = FastAPI()
@@ -67,15 +68,16 @@ def legacy_service_worker():
 
 
 # --- 註冊路由 ---
-app.include_router(drive.router)
-app.include_router(music.router)
+app.include_router(modules_router)
+app.include_router(drive.router, dependencies=[Depends(require_enabled("drive"))])
+app.include_router(music.router, dependencies=[Depends(require_enabled("music"))])
 app.include_router(auth.router)
-app.include_router(calendar.router)
-app.include_router(notes.router)
-app.include_router(tasks.router)
-app.include_router(money.router)
-app.include_router(chat.router)
-app.include_router(quiz.router)
+app.include_router(calendar.router, dependencies=[Depends(require_enabled("calendar"))])
+app.include_router(notes.router, dependencies=[Depends(require_enabled("notes"))])
+app.include_router(tasks.router, dependencies=[Depends(require_enabled("tasks"))])
+app.include_router(money.router, dependencies=[Depends(require_enabled("money"))])
+app.include_router(chat.router, dependencies=[Depends(require_enabled("chat"))])
+app.include_router(quiz.router, dependencies=[Depends(require_enabled("quiz"))])
 app.include_router(workspaces.router)
 app.include_router(project_content.router)
 app.include_router(files.router)

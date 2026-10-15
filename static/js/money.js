@@ -3,7 +3,6 @@ let currentCategories = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('m-date').valueAsDate = new Date();
-    loadMoney();
 });
 
 async function loadMoney() {

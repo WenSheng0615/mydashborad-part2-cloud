@@ -2,22 +2,24 @@ function initSettings() {
     // 1. 初始化深色模式開關
     const isLight = document.body.classList.contains('light-mode');
     const toggle = document.getElementById('theme-switch');
-    if (toggle) toggle.checked = isLight;
+    if (toggle) toggle.checked = !isLight;
 
     // 2. 初始化通知開關
     const notifyToggle = document.getElementById('notify-switch');
     if (notifyToggle) {
-        notifyToggle.checked = (Notification.permission === 'granted');
+        notifyToggle.checked = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+        notifyToggle.disabled = typeof Notification === 'undefined';
     }
 
     // 3. 載入儲存空間
-    loadStorageInfo();
+    if (FlowModules.isEnabled('drive')) loadStorageInfo();
+    else document.getElementById('storage-usage-text').textContent = 'Google Drive App 已停用';
 }
 
 // 切換深色/淺色
 function toggleTheme() {
     const isChecked = document.getElementById('theme-switch').checked;
-    if (isChecked) {
+    if (!isChecked) {
         document.body.classList.add('light-mode');
         localStorage.setItem('theme', 'light');
     } else {
@@ -87,10 +89,3 @@ async function clearSystemCache() {
     localStorage.clear();
     location.reload();
 }
-
-// 監聽進入設定頁面的動作，確保資料刷新
-document.addEventListener('click', (e) => {
-    if (e.target.closest('#nav-settings') || e.target.closest('.app-icon-card[onclick*="settings"]')) {
-        setTimeout(initSettings, 100);
-    }
-});

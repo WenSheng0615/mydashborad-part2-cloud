@@ -48,3 +48,8 @@ Private HomeCloud HTTPS is provided by Tailscale Serve → nginx → localhost-o
 Google/iCloud calendar aggregation is implemented: Google primary calendar plus optional owner-scoped read-only iCloud CalDAV. Real iCloud authorization/read succeeded on 2026-10-13. Credentials remain runtime-only. Provider event aggregation is not a Project Event domain, persistent synchronization, deduplication or two-way sync.
 
 Scheduled snapshots now run on the host using SQLite Backup API from a read-only source. The snapshot is checked for integrity, foreign keys and supported revision before atomic publication. Windows copies require SQLite and checksum validation. These maintenance scripts do not change the app schema or introduce a new service. See [reliability evidence](RELIABILITY_2026-10-15.md).
+
+
+## App module boundary — 2026-10-15
+
+FocusFlow is evolving toward selectable Apps on a shared platform. First stage: a trusted built-in registry, owner-scoped enable/disable preferences, optional App API guards and a Settings management surface. Core Identity/Home/Settings/Workspace/Project cannot be disabled. Standalone Apps remain packaged with the monolith; downloadable packages and third-party sandboxing are future work. See [MODULES.md](MODULES.md) for lifecycle, integration/permission boundaries and migration 0005.

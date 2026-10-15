@@ -52,7 +52,7 @@ with sync_playwright() as p:
  workspace = page.locator('#workspace').bounding_box()
  assert workspace['y'] + workspace['height'] <= dock['y'] + 1
  page.locator('[data-dock=home]').click()
- assert page.locator('#launcher').is_visible()
+ page.locator('#launcher').wait_for(state='visible')
  page.wait_for_timeout(350)
  assert not page.locator('#sidebar').is_visible()
  assert page.locator('[data-dock=home]').get_attribute('aria-current') == 'page'

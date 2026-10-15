@@ -58,3 +58,15 @@ def test_backup_selection_skips_newer_empty_or_invalid_files(tmp_path):
     good.unlink()
     with pytest.raises(RuntimeError,match='No verified backup'):
         select(tmp_path)
+
+
+def test_snapshots_support_old_revision_and_preserve_module_choices(tmp_path):
+    source=tmp_path/'old.db';migrate(source,'0004_daily_workspace')
+    backup=tmp_path/'old-copy.db'
+    snapshot(source,backup)
+    migrate(source)
+    with sqlite3.connect(source) as db:
+        db.execute("INSERT INTO module_preferences VALUES ('owner','music',0)")
+    new=tmp_path/'new-copy.db';snapshot(source,new)
+    with sqlite3.connect(new) as db:
+        assert db.execute('SELECT user_email,module_id,enabled FROM module_preferences').fetchone()==('owner','music',0)

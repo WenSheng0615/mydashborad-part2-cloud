@@ -3,3 +3,5 @@ from .legacy import UserSession, Note, Transaction, Category, KeepItem, MusicHis
 from .workspace import Workspace, Project
 from .task import Task
 from .project_link import ProjectLink
+
+from .module_preference import ModulePreference

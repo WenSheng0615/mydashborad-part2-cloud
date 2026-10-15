@@ -5,6 +5,13 @@
     </div>
 
     <div class="settings-grid">
+        <section class="setting-card module-card" aria-labelledby="module-heading">
+            <h2 id="module-heading">我的 App 模組</h2>
+            <p>選擇要放在首頁的功能。停用會保留資料，重新啟用即可繼續使用。這裡管理隨 FocusFlow 提供的內建 App。</p>
+            <p id="module-status" class="module-status" role="status" aria-live="polite">正在載入模組設定…</p>
+            <button type="button" id="module-reload" class="btn-tool">重新載入</button>
+            <div id="module-list" class="module-list"></div>
+        </section>
 
         <div class="setting-card profile-card">
             <div class="profile-header">
@@ -28,7 +35,7 @@
             <div class="setting-row">
                 <div class="setting-info">
                     <div class="setting-name">深色模式 (Dark Mode)</div>
-                    <div class="setting-desc">切換介面風格 (紅黑 / 藍白)</div>
+                    <div class="setting-desc">切換深色與淺色介面</div>
                 </div>
                 <label class="switch">
                     <input type="checkbox" id="theme-switch" onchange="toggleTheme()">

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from config import DATABASE_URL
-from models import (Base, UserSession, Note, Transaction, Category, KeepItem,
+from models import (ModulePreference, Base, UserSession, Note, Transaction, Category, KeepItem,
                     MusicHistory, ExamSession, ExamAnswer, QuizBank, QuizQuestion, QuizOption, Workspace, Project)
 
 SQLALCHEMY_DATABASE_URL = DATABASE_URL
@@ -61,6 +61,11 @@ def merge_guest_data(old_email: str, new_email: str) -> int:
     try:
         for model in (Note, Transaction, Category, MusicHistory, QuizBank, ExamSession, KeepItem, Workspace):
             total += db.query(model).filter(model.user_email == old_email).update({model.user_email: new_email})
+        # Existing signed-in preferences take precedence over guest choices.
+        for preference in db.query(ModulePreference).filter_by(user_email=old_email).all():
+            if db.get(ModulePreference, (new_email, preference.module_id)) is None:
+                db.add(ModulePreference(user_email=new_email, module_id=preference.module_id, enabled=preference.enabled))
+            db.delete(preference)
         db.commit()
     except Exception:
         db.rollback()

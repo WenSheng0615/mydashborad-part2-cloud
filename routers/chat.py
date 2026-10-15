@@ -119,6 +119,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not current or current.user_email != session.user_email:
                     await websocket.close(code=4401)
                     break
+                def app_enabled():
+                    from services.module_service import enabled
+                    with get_db() as db:
+                        return enabled(db, session.user_email, "chat")
+                if not await run_in_threadpool(app_enabled):
+                    await websocket.close(code=4403)
+                    break
                 last_check = time.monotonic()
             message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
             if message:

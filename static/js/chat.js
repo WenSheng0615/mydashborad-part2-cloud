@@ -1,7 +1,13 @@
 let ws, chatCursor = null, chatRetry = 0, sendingChat = false;
-if (!window.QRCode) { const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; document.head.append(script); }
-document.addEventListener('DOMContentLoaded', () => { loadChatHistory(); connectWebSocket(); });
+
+function initChat() {
+    if (!window.QRCode && !document.getElementById('chat-qr-library')) { const script = document.createElement('script'); script.id = 'chat-qr-library'; script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; document.head.append(script); }
+    loadChatHistory(); if (!ws || ws.readyState > 1) connectWebSocket(); }
+window.addEventListener('modules-changed', () => {
+    if (!FlowModules.isEnabled('chat') && ws) ws.close(4403, 'Module disabled');
+});
 function connectWebSocket() {
+    if (!FlowModules.isEnabled('chat')) return;
     ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/chat/ws`);
     ws.onopen = () => { chatRetry = 0; };
     ws.onmessage = event => {
