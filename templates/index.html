@@ -23,7 +23,7 @@
 
     <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
     <link rel="stylesheet" href="/static/css/components.css?v=8000">
-<link rel="stylesheet" href="/static/css/workbench.css?v=9001"><link rel="stylesheet" href="/static/css/modules.css?v=1"></head>
+<link rel="stylesheet" href="/static/css/workbench.css?v=9001"><link rel="stylesheet" href="/static/css/modules.css?v=2"></head>
 
 <body>
     <script src="/static/js/theme.js?v=8000"></script>
@@ -43,7 +43,7 @@
         </div>
     </div>
     <div id="launcher">
-        <header class="home-heading"><img src="/static/icons/icon.svg?v=20261013" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div><button type="button" class="home-manage" onclick="openApp('settings')">管理 App</button></header>
+        <header class="home-heading"><img src="/static/icons/icon.svg?v=20261013" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div><button type="button" class="home-manage" onclick="openApp('modules')">管理 App</button></header>
         <a class="app-icon-card" href="/projects" style="text-decoration:none;color:inherit"><i class="fa-solid fa-layer-group"></i><span>工作空間 / Today</span></a>
         <button type="button" class="app-icon-card" data-module-id="music" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></button>
         <button type="button" class="app-icon-card" data-module-id="drive" onclick="openApp('drive')"><i
@@ -84,11 +84,12 @@
         {% include 'partials/money.html' %}
         {% include 'partials/chat.html' %}
         {% include 'partials/settings.html' %}
+        {% include 'partials/modules.html' %}
         {% include 'partials/quiz.html' %}
     </main>
 
     <script src="/static/js/ui.js?v=5000"></script>
-    <script src="/static/js/modules.js?v=1"></script>
+    <script src="/static/js/modules.js?v=2"></script>
     <script src="/static/js/drive.js?v=6001"></script>
     <script src="/static/js/music.js?v=8000"></script>
     <script src="/static/js/calendar.js?v=8000"></script>

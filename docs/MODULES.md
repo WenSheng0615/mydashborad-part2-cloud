@@ -10,7 +10,7 @@ Optional App IDs: notes, tasks, calendar, drive, music, money, chat, quiz. The c
 
 ## User workflow
 
-Home → 管理 App (or Settings) → 我的 App 模組. Toggle an optional App. Preferences are stored per authenticated/guest identity and reload with that identity across devices. Existing users default to all Apps enabled. Core entries cannot be disabled. Disabled App cards/sidebar links and Calendar mobile destination disappear; Home/Settings/Core remain reachable. Re-enable to resume using preserved data.
+Home → 管理 App → 我的模組 (also reachable from Settings → 開啟模組管理). Toggle an optional App. Preferences are stored per authenticated/guest identity and reload with that identity across devices. Existing users default to all Apps enabled. Core entries cannot be disabled. Disabled App cards/sidebar links and Calendar mobile destination disappear; Home/Settings/Core remain reachable. Re-enable to resume using preserved data.
 
 No uninstall or destructive-data option is offered. External provider authorization is retained until separately revoked. An unavailable preference API shows retry feedback; failed saves restore the original choice. Existing active requests are not retroactively cancelled. Another device must refresh its UI; server requests still check the current preference. Existing Chat subscriptions are rechecked at the existing 30-second session interval and close when disabled.
 
@@ -47,3 +47,10 @@ A post-upgrade snapshot and Windows copy both passed SQLite/SHA256 verification;
 
 
 Final deployed application checkpoint: `bba3f83` (`focusflow-modules:bba3f83`, also `focusflow-focusflow:latest`). Cross-page Calendar visibility passed the real isolated E2E. Live desktop/mobile management entry passed with no eager Notes/Money/Chat/Music requests, JavaScript errors or horizontal overflow. Production schema preflight passed; no owner credentials were used for automated UI testing.
+
+
+## Card-based manager — 2026-10-15
+
+The independent 我的模組 panel follows the management patterns of Chrome/Edge extensions: searchable App cards, all/enabled/disabled filters, details and an enable switch. Desktop uses two columns; mobile uses one scrollable column with room above the fixed navigation. Eight optional Apps and two fixed Core entries are grouped separately. Details explain provider requirements, data retention and update ownership; enabling is not proof of an external connection. There is no fake uninstall, third-party installation, browser permission grant or developer mode.
+
+References: https://support.google.com/chrome/answer/2664769?hl=en and https://learn.microsoft.com/en-us/microsoft-edge/extensions/getting-started/extension-sideloading . Existing backend/schema are unchanged. Authenticated isolated browser workflow covers filtering, empty results, details/Escape, persisted toggles and cross-page visibility. Mocked ten-panel desktop/mobile checks cover scrolling, overflow and injection regressions. Production authentication/provider consent is not automated.

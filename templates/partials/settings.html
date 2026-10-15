@@ -5,12 +5,9 @@
     </div>
 
     <div class="settings-grid">
-        <section class="setting-card module-card" aria-labelledby="module-heading">
-            <h2 id="module-heading">我的 App 模組</h2>
-            <p>選擇要放在首頁的功能。停用會保留資料，重新啟用即可繼續使用。這裡管理隨 FocusFlow 提供的內建 App。</p>
-            <p id="module-status" class="module-status" role="status" aria-live="polite">正在載入模組設定…</p>
-            <button type="button" id="module-reload" class="btn-tool">重新載入</button>
-            <div id="module-list" class="module-list"></div>
+        <section class="setting-card">
+            <h2>App 模組</h2><p class="setting-desc">管理首頁上的 App，查看功能說明與外部服務需求。</p>
+            <button type="button" class="home-manage" onclick="openApp('modules')">開啟模組管理 →</button>
         </section>
 
         <div class="setting-card profile-card">

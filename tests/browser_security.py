@@ -37,7 +37,7 @@ with sync_playwright() as p:
   expected_accent = '#8acbbd'
   assert page.evaluate("getComputedStyle(document.body).getPropertyValue('--accent').trim()") == expected_accent
   assert page.locator('.mobile-dock').is_visible() == (size == 390)
-  for name in ['notes','drive','calendar','tasks','money','chat','music','quiz','settings']:
+  for name in ['notes','drive','calendar','tasks','money','chat','music','quiz','settings','modules']:
    before=len(errors)
    try:
     page.evaluate('(name)=>openApp(name)',name)
@@ -45,18 +45,22 @@ with sync_playwright() as p:
     info=page.locator('#view-'+name).evaluate('''e=>({visible:getComputedStyle(e).display!=='none',panelWidth:e.clientWidth,scroll:e.scrollWidth,overflow:e.scrollWidth>e.clientWidth+2})''')
     results.append(dict(page=name,width=size,**info,errors=errors[before:]))
    except Exception as e:results.append(dict(page=name,width=size,error=str(e)[:300]))
-  # A real wheel gesture must scroll Settings, including desktop's clipped shell.
-  settings=page.locator('#view-settings')
-  settings.evaluate('(e)=>e.scrollTop=0')
-  settings.hover();page.mouse.wheel(0,1200);page.wait_for_timeout(250)
-  assert settings.evaluate('(e)=>e.scrollTop>0')
-  page.get_by_role('checkbox',name='啟用學習測驗',exact=True).scroll_into_view_if_needed()
-  assert page.get_by_role('checkbox',name='啟用學習測驗',exact=True).is_visible()
-  settings.evaluate('(e)=>e.scrollTop=e.scrollHeight')
-  about=page.locator('.about-card').bounding_box()
-  viewport=settings.bounding_box()
-  assert about['y']+about['height'] <= viewport['y']+viewport['height']+1
-  page.screenshot(path=str(out/f'qa-settings-{size}.png'),full_page=True)
+  # Both long panels must scroll within the shell, above the fixed dock.
+  for panel_id, last_card in [('modules','#module-core-list .module-tile'),('settings','.about-card')]:
+   page.evaluate('(name)=>openApp(name)',panel_id)
+   panel=page.locator('#view-'+panel_id)
+   panel.evaluate('(e)=>e.scrollTop=0')
+   panel.hover();page.mouse.wheel(0,1200);page.wait_for_timeout(250)
+   if panel_id == 'modules' or panel.evaluate('(e)=>e.scrollHeight>e.clientHeight+1'):
+    assert panel.evaluate('(e)=>e.scrollTop>0')
+   if panel_id == 'modules':
+    page.get_by_role('checkbox',name='啟用學習測驗',exact=True).scroll_into_view_if_needed()
+    assert page.get_by_role('checkbox',name='啟用學習測驗',exact=True).is_visible()
+   panel.evaluate('(e)=>e.scrollTop=e.scrollHeight')
+   last=page.locator(last_card).last.bounding_box()
+   viewport=panel.bounding_box()
+   assert last['y']+last['height'] <= viewport['y']+viewport['height']+1
+   page.screenshot(path=str(out/f'qa-{panel_id}-{size}.png'),full_page=True)
  # Mobile dock stays above content and Home makes every app reachable.
  page.set_viewport_size({'width':390,'height':700})
  page.evaluate("openApp('calendar')")
