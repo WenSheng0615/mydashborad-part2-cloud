@@ -1,6 +1,7 @@
 /* Trusted built-in App management. Server preferences remain authoritative. */
 window.FlowModules = (() => {
-    let entries = null, filter = 'all', query = '';
+    let entries = null, filter = 'all', query = '', connections = {}, connectionRequest = null;
+    const checking = new Set();
     const state = document.getElementById('module-status') || document.createElement('p');
     const glyphs = {
         workspace:'M3 7h18v14H3z M8 7V3h8v4 M3 12h18', settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
@@ -14,6 +15,52 @@ window.FlowModules = (() => {
         const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',glyphs[id] || glyphs.workspace);svg.append(path);box.append(svg);return box;
     }
     function isEnabled(id) { return !entries || entries.find(m => m.id === id)?.enabled !== false; }
+    function connectionRows(module, container, withActions=false) {
+        container.replaceChildren();
+        const summary=connections[module.id] || [{provider:'連線狀態',status:'unknown',message:'尚未載入；可重新載入設定'}];
+        const visible=withActions?summary:summary.filter(info=>info.provider!=='附件儲存（選用）');
+        for(const info of visible) {
+            const row=FlowUI.node('div',null,'module-connection');
+            row.dataset.connectionStatus=info.status;
+            row.append(FlowUI.node('strong',info.provider),FlowUI.node('span',info.message));
+            if(withActions && info.action==='google') {
+                const button=FlowUI.node('button','連接／重新授權 Google','module-button');button.type='button';
+                button.onclick=()=>checkLogin(true);row.append(button);
+            }
+            if(withActions && info.action==='icloud') {
+                const button=FlowUI.node('button','iCloud 設定說明','module-button');button.type='button';
+                const guide=FlowUI.node('p','目前由伺服器管理者設定私密 CalDAV：將你的 FocusFlow 登入帳號對應到 Apple 帳號及 App 專用密碼，設定後重新建立容器。請透過私密的部署設定操作，不要在聊天、模組搜尋欄或一般表單貼上密碼。此連線只提供唯讀行事曆。','module-footnote');guide.hidden=true;
+                button.setAttribute('aria-expanded','false');button.onclick=()=>{guide.hidden=!guide.hidden;button.setAttribute('aria-expanded',String(!guide.hidden));};
+                row.append(button,guide);
+            }
+            container.append(row);
+        }
+    }
+    async function loadConnections() {
+        if(!document.getElementById('module-list'))return;
+        if(connectionRequest)return connectionRequest;
+        connectionRequest=(async()=>{
+            const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),10000);
+            try {
+                const data=await FlowUI.request('/api/modules/connections',{signal:controller.signal});
+                if(data.connections && typeof data.connections==='object')connections=data.connections;
+            } catch(_) {state.textContent='連線狀態暫時無法載入，App 設定仍可使用。';}
+            finally {clearTimeout(timer);render();connectionRequest=null;}
+        })();
+        return connectionRequest;
+    }
+    async function checkConnections(module, button, rows, feedback) {
+        if(checking.has(module.id))return;
+        checking.add(module.id);button.disabled=true;button.textContent='正在檢查…';
+        const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),45000);
+        try {
+            const data=await FlowUI.request('/api/modules/'+module.id+'/connections/check',{method:'POST',signal:controller.signal});
+            if(!Array.isArray(data.connections))throw new Error();
+            connections[module.id]=data.connections;connectionRows(module,rows,true);render();
+            feedback.textContent='檢查完成；結果僅代表本次連線，未變更資料。';
+        } catch(_) {feedback.textContent='檢查未完成，請稍後重試；已保留原設定。';}
+        finally {clearTimeout(timer);checking.delete(module.id);button.disabled=false;button.textContent='檢查連線';}
+    }
     function detail(module) {
         const dialog=document.getElementById('module-detail');
         document.getElementById('module-detail-title').textContent=module.name;
@@ -28,6 +75,14 @@ window.FlowModules = (() => {
         ]) facts.append(FlowUI.node('dt',label),FlowUI.node('dd',value));
         body.append(facts);
         if(module.integrations.length)body.append(FlowUI.node('p','啟用 App 不代表外部服務已連線；帳號授權與連線設定需另行完成。','module-footnote'));
+        const heading=FlowUI.node('h3','服務連線','module-connections-heading');
+        const rows=FlowUI.node('div',null,'module-connections');connectionRows(module,rows,true);body.append(heading,rows);
+        if(['tasks','calendar','drive','music'].includes(module.id)) {
+            const check=FlowUI.node('button','檢查連線','module-button');check.type='button';check.disabled=!module.enabled || checking.has(module.id);
+            check.onclick=()=>checkConnections(module,check,rows,feedback);body.append(check);
+            const feedback=FlowUI.node('p',module.enabled?'只在按下按鈕後進行唯讀連線檢查。':'請先啟用此 App 再檢查連線。','module-footnote');
+            feedback.id='module-check-status';feedback.setAttribute('role','status');body.append(feedback);
+        }
         dialog.showModal();
     }
     async function save(module, checkbox) {
@@ -62,7 +117,8 @@ window.FlowModules = (() => {
             checkbox.addEventListener('change',()=>save(module,checkbox));
             label.append(text,checkbox,visual);footer.append(label);
         }
-        card.append(footer);return card;
+        const connection=FlowUI.node('div',null,'module-connections module-card-connections');connectionRows(module,connection);
+        card.append(connection,footer);return card;
     }
     function render() {
         const list=document.getElementById('module-list'), coreList=document.getElementById('module-core-list');
@@ -102,9 +158,9 @@ window.FlowModules = (() => {
             state.textContent='設定會跟隨帳號；停用不會刪除資料或撤銷外部服務授權。';
         }catch(_){state.textContent='暫時無法載入模組設定，請重試。';}finally{clearTimeout(timer);}
     }
-    document.getElementById('module-reload')?.addEventListener('click',()=>{api.ready=refresh();});
+    document.getElementById('module-reload')?.addEventListener('click',()=>{api.ready=refresh();loadConnections();});
     document.getElementById('module-search')?.addEventListener('input',e=>{query=e.target.value.trim().toLocaleLowerCase();render();});
     document.querySelectorAll('[data-module-filter]').forEach(button=>button.addEventListener('click',()=>{filter=button.dataset.moduleFilter;render();}));
     document.getElementById('module-detail-close')?.addEventListener('click',()=>document.getElementById('module-detail').close());
-    const api={isEnabled,refresh,ready:null};api.ready=refresh();return api;
+    const api={isEnabled,refresh,loadConnections,ready:null};api.ready=refresh();return api;
 })();

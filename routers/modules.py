@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, WebSocketException
+from fastapi import APIRouter, HTTPException, WebSocketException, Request, Response
 from pydantic import BaseModel, ConfigDict, StrictBool
 from starlette.requests import HTTPConnection
 from database import get_db, get_session_info
 from routers.workspaces import User, DB
 from services import module_service as service
+from services import module_connections as connections
 
 router = APIRouter(prefix="/api/modules", tags=["modules"])
 
@@ -29,6 +30,31 @@ def update_module(module_id: str, body: ModuleUpdate, user: User, db: DB):
     else:
         service.set_enabled(db, user, module_id, body.enabled)
     return {"modules": service.catalog(db, user)}
+
+
+@router.get("/connections")
+def connection_summary(request: Request, response: Response, user: User):
+    response.headers['Cache-Control'] = 'no-store'
+    session = get_session_info(request.cookies.get('session_id'))
+    if not session or session.user_email != user:
+        raise HTTPException(401, '請先登入')
+    return {'connections': connections.snapshot(session)}
+
+
+@router.post("/{module_id}/connections/check")
+def check_connections(module_id: str, request: Request, response: Response, user: User, db: DB):
+    response.headers['Cache-Control'] = 'no-store'
+    if module_id not in connections.GOOGLE:
+        raise HTTPException(404, '此 App 沒有外部帳號連線檢查')
+    if not service.enabled(db, user, module_id):
+        raise HTTPException(409, '請先啟用此 App 再檢查連線')
+    session = get_session_info(request.cookies.get('session_id'))
+    if not session or session.user_email != user:
+        raise HTTPException(401, '請先登入')
+    result = [connections.check_google(session, module_id)]
+    if module_id == 'calendar':
+        result.append(connections.check_icloud(user))
+    return {'connections': result}
 
 
 def require_enabled(module_id):

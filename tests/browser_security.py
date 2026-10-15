@@ -26,6 +26,8 @@ with sync_playwright() as p:
    return route.fulfill(status=404,body='Not found')
   data={'items':[],'files':[],'notes':[],'events':[],'banks':[],'questions':[],'sessions':[],'messages':[],'todo':[],'doing':[],'done':[],'transactions':[],'categories':[],'total_income':0,'total_expense':0,'balance':0}
   if '/api/modules' in url:data={'modules':[dict(module,enabled=True) for module in CATALOG]}
+  if '/api/modules/connections' in url:
+   data={'connections':{m['id']:[{'provider':'測試服務','status':'unverified','message':'已設定，尚未檢查服務連線'}] for m in CATALOG}}
   if '/auth/user' in url:data={'name':'QA user','email':'qa@example.test','is_guest':False,'logged_in':True}
   if '/drive/storage' in url:data={'total':1000,'used':100,'trash':0}
   route.fulfill(status=200,json=data)
