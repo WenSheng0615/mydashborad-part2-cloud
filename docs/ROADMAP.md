@@ -82,3 +82,6 @@ Next: observe the next scheduled backups and network stability; then run real iP
 ## Direction adjustment — selectable built-in Apps
 
 User confirmed a future HomeCloud module catalog analogous to selecting extensions. First implement trusted built-in App management and preserve Core; then design versioned trusted packages, only later third-party installation/update/isolation. This stage does not start GitHub, AI, microservices or a new frontend framework. Details and acceptance evidence: [MODULES.md](MODULES.md).
+
+
+Built-in module management first stage is implemented and deployed (`bba3f83`, revision 0005). 79 pytest tests plus isolated browser module workflows and live management-entry checks passed. Next collect daily-use feedback and define a versioned trusted-package contract; downloading/executing third-party code remains out of scope.

@@ -243,3 +243,8 @@ HomeCloud Production Foundation 的目標是提供穩定的
 Application release is `19c4763` on server branch `sprint-4-daily-driver`, image `focusflow-icons:19c4763` (also tagged `focusflow-focusflow:latest`). Rollback image retained: `focusflow-rollback:pre-icons-20261013`. Desktop/mobile share the dark palette; layout redesign is mobile scoped. iCloud runtime configuration has been supplied privately and read-only authorization was verified.
 
 Reliability maintenance changes only host maintenance scripts/docs/tests; no app container rebuild, DB migration or production data restore is required. Private Tailscale Serve access boundary remains unchanged.
+
+
+## Built-in modules release — 2026-10-15
+
+Application checkpoint `bba3f83`, image `focusflow-modules:bba3f83` (also tagged `focusflow-focusflow:latest`). SQLite is now `0005_module_preferences`; the additive table stores per-user App choices. A verified pre-cutover 0004 snapshot and the matched previous image are retained privately for rollback. The 0005 snapshot/Windows copy and production preflight/health passed. Module choice behavior is covered by isolated browser/API tests; see [MODULES.md](MODULES.md). Runtime secrets and the tailnet access boundary are unchanged.
