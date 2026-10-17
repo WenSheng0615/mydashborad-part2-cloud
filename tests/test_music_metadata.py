@@ -15,6 +15,7 @@ def test_stream_supplies_metadata_without_extra_provider_request(alice, monkeypa
     assert response.status_code == 200
     assert response.json()['channel'] == expected
     assert response.json()['title'] == 'Track title'
+    assert response.headers['cache-control'] == 'no-store'
     extractor.extract_info.assert_called_once_with('https://www.youtube.com/watch?v=abcdefghijk', download=False)
 
 
@@ -54,3 +55,29 @@ def test_playlist_last_page_error_and_validation(alice, monkeypatch):
     # Remove provider stub so the real authentication boundary is exercised.
     monkeypatch.setattr(music, '_youtube_service', original_provider)
     assert alice.get('/api/music/playlist/items?playlist_id=PL-test').status_code == 401
+
+
+def test_stream_prefers_direct_m4a_and_preserves_signed_url_expiry(alice, monkeypatch):
+    from yt_dlp import YoutubeDL
+    original = YoutubeDL
+    options = []
+    extractor = MagicMock()
+    extractor.__enter__.return_value = extractor
+    extractor.extract_info.return_value = dict(url='https://example.test/audio?expire=2000000000', title='Track', ext='m4a', protocol='https')
+    def factory(opts):
+        options.append(opts)
+        return extractor
+    monkeypatch.setattr(music.yt_dlp, 'YoutubeDL', factory)
+    data = alice.get('/api/music/stream?video_id=abcdefghijk').json()
+    assert data['expires_at'] == 2000000000 and data['format'] == 'm4a' and data['protocol'] == 'https'
+    # Exercise yt-dlp's real selector against competing formats, without any provider network calls.
+    with original({'quiet': True}) as ydl:
+        selector = ydl.build_format_selector(options[0]['format'])
+        def fmt(name, ext, protocol, quality):
+            return dict(format_id=name, url='https://example.test/' + name, ext=ext,
+                        protocol=protocol, vcodec='none', acodec='aac' if ext == 'm4a' else 'opus', abr=quality)
+        formats = [fmt('direct-aac', 'm4a', 'https', 128), fmt('hls-aac', 'm4a', 'm3u8_native', 160), fmt('opus', 'webm', 'https', 192)]
+        context = dict(formats=formats, has_merged_format=False, incomplete_formats=False)
+        assert list(selector(context))[0]['format_id'] == 'direct-aac'
+        context['formats'] = [formats[-1]]
+        assert list(selector(context))[0]['format_id'] == 'opus'  # Fallback remains available.

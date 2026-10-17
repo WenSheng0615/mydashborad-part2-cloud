@@ -119,7 +119,8 @@ with sync_playwright() as p:
  }});""")
  media.goto('http://127.0.0.1:8000/',wait_until='networkidle')
  media.evaluate("""() => {
- audio.play=()=>{audio.dispatchEvent(new Event('play'));return Promise.resolve()};
+ Object.defineProperty(audio,'src',{configurable:true,get(){return this.getAttribute('data-qa-source')||''},set(value){this.setAttribute('data-qa-source',value)}});
+ audio.play=()=>{window.playCalls=(window.playCalls||0)+1;audio.dispatchEvent(new Event('play'));audio.dispatchEvent(new Event('playing'));return Promise.resolve()};
  audio.pause=()=>audio.dispatchEvent(new Event('pause'));
  Object.defineProperty(audio,'duration',{configurable:true,value:200});
  Object.defineProperty(audio,'currentTime',{configurable:true,writable:true,value:12});
@@ -132,11 +133,11 @@ with sync_playwright() as p:
  media.evaluate("""async () => {
  pendingTracks.bbbbbbbbbbb(new Response(JSON.stringify({url:'/test-audio-b',title:'真正歌名',channel:'演出者頻道',thumbnail:'https://img.youtube.com/vi/bbbbbbbbbbb/hqdefault.jpg'}),{status:200}));
  await secondPlay;
- pendingTracks.aaaaaaaaaaa(new Response(JSON.stringify({url:'/test-audio-a',title:'Stale title',channel:'Old channel'}),{status:200}));
+ pendingTracks.aaaaaaaaaaa(new Response(JSON.stringify({url:'/test-audio-a',title:'Previous song'}),{status:200}));
  await firstPlay;
  }""")
  metadata=media.evaluate("""() => ({title:navigator.mediaSession.metadata.title,artist:navigator.mediaSession.metadata.artist,
- artwork:navigator.mediaSession.metadata.artwork[0].src,source:audio.getAttribute('src'),state:navigator.mediaSession.playbackState})""")
+ artwork:navigator.mediaSession.metadata.artwork[0].src,source:audio.getAttribute('data-qa-source'),state:navigator.mediaSession.playbackState})""")
  assert metadata['title']=='真正歌名' and metadata['artist']=='演出者頻道',metadata
  assert 'bbbbbbbbbbb' in metadata['artwork'] and metadata['source']=='/test-audio-b',metadata
  assert metadata['state']=='playing',metadata
@@ -155,6 +156,54 @@ with sync_playwright() as p:
  media.wait_for_function("navigator.mediaSession.metadata.title==='Previous song'")
  assert media.evaluate('navigator.mediaSession.metadata.artist')=='YouTube'
  assert media.evaluate('navigator.mediaSession.metadata.artwork[0].src').endswith('/static/icons/icon-192.png')
+ media.evaluate('previewSeek(90)')
+ assert media.evaluate('audio.currentTime')==70
+ assert media.locator('#current-time').inner_text()=='3:00'
+ media.evaluate('seekTo(90)')
+ assert media.evaluate('audio.currentTime')==180
+ # A prepared next track must call play synchronously from ended, with no network await.
+ background=media.evaluate("""() => {
+ const count=window.playCalls;onAudioEnded();
+ return {source:audio.getAttribute('data-qa-source'),plays:window.playCalls-count,title:navigator.mediaSession.metadata.title};
+ }""")
+ assert background['source']=='/test-audio-b' and background['plays']==1,background
+ assert background['title']=='真正歌名',background
+ media.evaluate("audio.dispatchEvent(new Event('waiting'))")
+ assert media.evaluate('navigator.mediaSession.playbackState')=='paused'
+ assert media.evaluate('mediaQA.positions.at(-1)') is None
+ assert '正在載入音訊' in media.locator('#music-playback-status').inner_text()
+ media.evaluate("audio.dispatchEvent(new Event('playing'))")
+ assert media.evaluate('navigator.mediaSession.playbackState')=='playing'
+ assert media.locator('#music-playback-status').inner_text()==''
+ # Resolving one song starts preparation of only the next, before ended is fired.
+ media.evaluate("""async () => {
+ musicQueue=[{id:'ccccccccccc',title:'Current'},{id:'ddddddddddd',title:'Next'}];
+ const playing=playTrack(0);
+ pendingTracks.ccccccccccc(new Response(JSON.stringify({url:'/current-audio',title:'Current'}),{status:200}));
+ await playing;
+ }""")
+ assert media.evaluate("typeof pendingTracks.ddddddddddd")=='function'
+ media.evaluate("""async () => {
+ const pending=preparingStreams.get('ddddddddddd');
+ pendingTracks.ddddddddddd(new Response(JSON.stringify({url:'/prepared-next',title:'Prepared next'}),{status:200}));
+ await pending;
+ }""")
+ assert media.evaluate("(()=>{const n=playCalls;onAudioEnded();return audio.src==='/prepared-next'&&playCalls===n+1})()")
+ media.evaluate("preparedStreams.get('ddddddddddd').until=Date.now()-1")
+ assert media.evaluate("preparedStream('ddddddddddd')===null")
+ # A failed next-track warm-up is non-fatal and must not retry on every progress event.
+ media.evaluate("""async () => {
+ musicQueue=[{id:'eeeeeeeeeee',title:'Current stays playing'},{id:'fffffffffff',title:'Unavailable next'}];
+ const playing=playTrack(0);
+ pendingTracks.eeeeeeeeeee(new Response(JSON.stringify({url:'/still-playing',title:'Current stays playing'}),{status:200}));
+ await playing;
+ const pending=preparingStreams.get('fffffffffff');
+ pendingTracks.fffffffffff(new Response(JSON.stringify({error:'Provider unavailable'}),{status:503}));
+ await pending.catch(()=>{});await Promise.resolve();
+ delete pendingTracks.fffffffffff;warmNextTrack();
+ }""")
+ assert media.evaluate("navigator.mediaSession.metadata.title==='Current stays playing' && navigator.mediaSession.playbackState==='playing'")
+ assert media.evaluate("!preparingStreams.has('fffffffffff') && !pendingTracks.fffffffffff")
  media.evaluate("syncMediaMetadata({title:'No cover supplied'})")
  assert media.evaluate('navigator.mediaSession.metadata.artwork[0].src').endswith('/static/icons/icon-192.png')
  media.evaluate("""() => {
@@ -178,7 +227,7 @@ with sync_playwright() as p:
  assert playlist_calls==[0,1,2,3,4],playlist_calls
  assert media.locator('#playlist-songs .track-item').count()==237
  assert media.locator('#playlist-songs .track-title').last.inner_text()=='Track 237'
- assert media.evaluate('musicQueue.length')==237
+ assert media.evaluate('musicQueue.length')==2
  media.locator('#playlist-songs .track-item').last.scroll_into_view_if_needed()
  media.locator('#playlist-songs .track-item').last.click()
  assert media.evaluate('currentTrackIndex')==236
@@ -209,7 +258,7 @@ with sync_playwright() as p:
  assert media.evaluate('musicQueue.length')==237
  probes['playlistPagination']='237 songs/5 pages, order, last-song playback, partial failure and cancelled response PASS'
  media.close()
- probes['mediaSession']='metadata, artwork, race, fallback, controls and unsupported API PASS'
+ probes['mediaSession']='metadata, prepared transition, buffering state, scrub, warm-up failure, controls and unsupported API PASS'
  report={'scope':'Mocked API, external CDN blocked; no real account mutations','panels':results,'missingHandlers':inventory,'probes':probes,'consoleErrors':errors}
  (out/'interface-test-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
  assert not inventory, inventory

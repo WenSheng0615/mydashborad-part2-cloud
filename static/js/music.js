@@ -5,6 +5,69 @@ let playlistLoadController = null;
 const musicFallbackCover = new URL('/static/icons/icon-192.png', location.origin).href;
 function musicCover(value) { return typeof value === 'string' && value.trim() ? FlowUI.url(value) : ''; }
 
+// Keep only a few signed URLs in memory; preparing a track does not download its audio.
+const preparedStreams = new Map(), preparingStreams = new Map();
+let plannedNext = null, warmFailure = null, mediaWaiting = false, isSeekingPreview = false;
+function preparedStream(id) {
+    const cached = preparedStreams.get(id);
+    if (!cached || cached.until <= Date.now()) { preparedStreams.delete(id); return null; }
+    return cached.data;
+}
+function prepareStream(song) {
+    const cached = preparedStream(song.id);
+    if (cached) return Promise.resolve(cached);
+    if (preparingStreams.has(song.id)) return preparingStreams.get(song.id);
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 25000);
+    const pending = (async () => {
+        try {
+            const data = await FlowUI.request('/api/music/stream?video_id=' + encodeURIComponent(song.id), {signal:controller.signal});
+            if (!data.url) throw new Error('No audio source');
+            const expires = Number(data.expires_at) * 1000;
+            const until = Math.min(Date.now() + 15 * 60 * 1000, Number.isFinite(expires) && expires > 0 ? expires - 30000 : Date.now() + 5 * 60 * 1000);
+            preparedStreams.set(song.id, {data, until});
+            while (preparedStreams.size > 3) preparedStreams.delete(preparedStreams.keys().next().value);
+            return data;
+        } finally { clearTimeout(timeout); preparingStreams.delete(song.id); }
+    })();
+    preparingStreams.set(song.id, pending);return pending;
+}
+function nextIndex() {
+    if (!musicQueue.length) return null;
+    if (isShuffle) {
+        if (plannedNext && plannedNext.queue === musicQueue && plannedNext.from === currentTrackIndex &&
+            plannedNext.shuffle === isShuffle && plannedNext.loop === loopMode &&
+            musicQueue[plannedNext.index] === plannedNext.song) return plannedNext.index;
+        if (musicQueue.length === 1) return 0;
+        const pick = Math.floor(Math.random() * (musicQueue.length - 1));
+        return pick >= currentTrackIndex ? pick + 1 : pick;
+    }
+    if (currentTrackIndex < musicQueue.length - 1) return currentTrackIndex + 1;
+    return loopMode >= 1 ? 0 : null;
+}
+function warmNextTrack() {
+    if (!FlowModules.isEnabled('music')) return;
+    const index = nextIndex();
+    if (index === null || musicQueue[index] === currentSong) return;
+    plannedNext = {queue:musicQueue,from:currentTrackIndex,shuffle:isShuffle,loop:loopMode,index,song:musicQueue[index]};
+    const song = musicQueue[index];
+    if (preparedStream(song.id) || preparingStreams.has(song.id) ||
+        (warmFailure?.id === song.id && warmFailure.retryAfter > Date.now())) return;
+    prepareStream(song).then(() => { if (warmFailure?.id === song.id) warmFailure = null; })
+        .catch(() => { warmFailure = {id:song.id,retryAfter:Date.now()+30000}; }); // Avoid retrying on every timeupdate.
+}
+function mediaStatus(text) {
+    const status = document.getElementById('music-playback-status');
+    if (status) status.textContent = text;
+}
+function setMediaWaiting(waiting) {
+    mediaWaiting = waiting;
+    if ('mediaSession' in navigator) {
+        try { navigator.mediaSession.playbackState = !waiting && !audio.paused && !audio.ended ? 'playing' : 'paused'; } catch (_) { }
+    }
+    syncMediaPosition();
+    mediaStatus(waiting ? '正在載入音訊，尚未開始播放…' : '');
+}
+
 function syncMediaMetadata(song) {
     if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
     try {
@@ -22,6 +85,7 @@ function syncMediaPosition() {
         if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
             navigator.mediaSession.setPositionState(); return;
         }
+        if (mediaWaiting) { navigator.mediaSession.setPositionState(); return; }
         navigator.mediaSession.setPositionState({duration: audio.duration,
             playbackRate: audio.playbackRate || 1,
             position: Math.max(0, Math.min(audio.currentTime, audio.duration))});
@@ -31,6 +95,7 @@ function syncMediaPosition() {
 function seekMedia(position) {
     if (!Number.isFinite(position) || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
     audio.currentTime = Math.max(0, Math.min(position, audio.duration));
+    mediaStatus('正在跳轉，若目標尚未緩衝需等待網路載入…');
     syncMediaPosition();
 }
 
@@ -62,10 +127,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化事件監聽
     if (audio) {
         initMediaSession();
+        const slider = document.getElementById('progress-bar');
+        for (const event of ['pointercancel', 'blur']) slider.addEventListener(event, () => { isSeekingPreview = false; updateProgress(); });
         audio.addEventListener('ended', onAudioEnded);
         audio.addEventListener('timeupdate', updateProgress);
-        audio.addEventListener('play', () => updatePlayBtn(true));
-        audio.addEventListener('pause', () => updatePlayBtn(false));
+        audio.addEventListener('play', () => { mediaWaiting = true; updatePlayBtn(true); });
+        audio.addEventListener('playing', () => { setMediaWaiting(false); updatePlayBtn(true); });
+        audio.addEventListener('waiting', () => setMediaWaiting(true));
+        audio.addEventListener('seeking', () => setMediaWaiting(true));
+        audio.addEventListener('error', () => { setMediaWaiting(true); mediaStatus('音訊載入失敗，請回播放器重試或重新選擇歌曲。'); });
+        audio.addEventListener('pause', () => { mediaWaiting = false; updatePlayBtn(false); });
         for (const event of ['loadedmetadata', 'durationchange', 'seeked', 'ratechange']) audio.addEventListener(event, syncMediaPosition);
     }
 });
@@ -180,15 +251,16 @@ async function playTrack(idx) {
     document.getElementById('loading-spinner').style.display = 'flex';
 
     try {
-        const res = await fetch(`/api/music/stream?video_id=${encodeURIComponent(song.id)}`);
-        const data = await res.json();
+        // A prepared track reaches audio.play() without first awaiting a network request.
+        const data = preparedStream(song.id) || await prepareStream(song);
         if (requestId !== playRequest) return;
 
-        if (res.ok && data.url) {
+        if (data.url) {
             // Stream extraction also supplies metadata for history/playlist entries without an author.
             song.title = data.title || song.title || '未知曲目';
             song.channel = data.channel || song.channel || 'YouTube';
             song.thumbnail = musicCover(data.thumbnail) || musicCover(song.thumbnail) || musicFallbackCover;
+            setMediaWaiting(true);
             audio.src = data.url;
             document.getElementById('current-track-title').innerText = song.title;
             document.getElementById('current-track-channel').innerText = song.channel;
@@ -202,6 +274,7 @@ async function playTrack(idx) {
             addToHistory(song);
 
             renderCurrentListState();
+            warmNextTrack();
         } else {
             console.error("解析失敗");
             showAlert('播放失敗','無法取得音訊，請稍後再試或選擇其他歌曲。');
@@ -209,6 +282,8 @@ async function playTrack(idx) {
     } catch (e) {
         if (requestId !== playRequest) return;
         console.error("播放錯誤:", e);
+        setMediaWaiting(true);
+        mediaStatus('播放未開始，請回播放器重試。');
         showAlert('播放失敗','目前無法播放，請稍後再試。');
     } finally {
         if (requestId === playRequest) document.getElementById('loading-spinner').style.display = 'none';
@@ -225,7 +300,7 @@ function renderCurrentListState() {
 function updatePlayBtn(playing) {
     isPlaying = playing;
     if ('mediaSession' in navigator) {
-        try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; } catch (_) { }
+        try { navigator.mediaSession.playbackState = playing && !mediaWaiting ? 'playing' : 'paused'; } catch (_) { }
     }
     syncMediaPosition();
     const btn = document.getElementById('btn-play-pause');
@@ -241,6 +316,7 @@ function togglePlayState() {
 }
 
 function onAudioEnded() {
+    updatePlayBtn(false);
     if (loopMode === 2) {
         audio.currentTime = 0;
         audio.play();
@@ -252,24 +328,16 @@ function onAudioEnded() {
 function controlPlayer(act) {
     if (act === 'next') playNext();
     if (act === 'prev') playPrev();
-    if (act === 'forward') audio.currentTime += 10;
-    if (act === 'rewind') audio.currentTime -= 10;
+    if (act === 'forward') seekMedia(audio.currentTime + 10);
+    if (act === 'rewind') seekMedia(audio.currentTime - 10);
 }
 
 function playNext(auto = false) {
     if (musicQueue.length === 0) return;
-    if (auto && loopMode === 0 && currentTrackIndex >= musicQueue.length - 1) return;
+    if (auto && !isShuffle && loopMode === 0 && currentTrackIndex >= musicQueue.length - 1) return;
 
-    if (isShuffle) {
-        let nextIdx = Math.floor(Math.random() * musicQueue.length);
-        playTrack(nextIdx);
-    } else {
-        if (currentTrackIndex < musicQueue.length - 1) {
-            playTrack(currentTrackIndex + 1);
-        } else if (loopMode >= 1) {
-            playTrack(0);
-        }
-    }
+    const index = nextIndex();
+    if (index !== null) playTrack(index);
 }
 
 function playPrev() {
@@ -278,6 +346,8 @@ function playPrev() {
 
 function updateProgress() {
     syncMediaPosition();
+    if (currentSong && Number.isFinite(audio.duration) && audio.duration - audio.currentTime < 45) warmNextTrack();
+    if (isSeekingPreview) return;
     if (audio && audio.duration) {
         document.getElementById('progress-bar').value = (audio.currentTime / audio.duration) * 100;
         document.getElementById('current-time').innerText = fmt(audio.currentTime);
@@ -285,8 +355,15 @@ function updateProgress() {
     }
 }
 
+function previewSeek(val) {
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    isSeekingPreview = true;
+    document.getElementById('current-time').innerText = fmt((Number(val) / 100) * audio.duration);
+}
+
 function seekTo(val) {
-    if (audio && audio.duration) audio.currentTime = (val / 100) * audio.duration;
+    isSeekingPreview = false;
+    if (audio && audio.duration) seekMedia((Number(val) / 100) * audio.duration);
 }
 
 function fmt(s) {
@@ -297,6 +374,7 @@ function fmt(s) {
 
 function toggleLoop() {
     loopMode = (loopMode + 1) % 3;
+    plannedNext = null; if (currentSong) warmNextTrack();
     const btn = document.getElementById('btn-loop');
     if (btn) {
         btn.className = loopMode === 0 ? "btn-tool btn-extra" : "btn-tool btn-extra active";
@@ -307,6 +385,7 @@ function toggleLoop() {
 
 function toggleShuffle() {
     isShuffle = !isShuffle;
+    plannedNext = null; if (currentSong) warmNextTrack();
     const btn = document.getElementById('btn-shuffle');
     if (btn) btn.classList.toggle('active');
 }
@@ -339,8 +418,7 @@ async function searchYouTube() {
             div.textContent = data.error;
             return;
         }
-        musicQueue = data.items || [];
-        renderList(div, musicQueue, 'search');
+        renderList(div, data.items || [], 'search');
     } catch (e) {
         div.innerHTML = '<p style="color:#ff4d4f; text-align:center;">連線錯誤</p>';
     }
@@ -393,8 +471,7 @@ async function loadPlaylistItems(pid, title) {
             status.textContent = `已讀取 ${items.length} 首，${token ? '繼續載入…' : '載入完成。'}`;
         } while (token);
         if (controller !== playlistLoadController) return;
-        // Only replace the queue once every page succeeded; never present a partial playlist as complete.
-        musicQueue = items;
+        // Display only complete playlists; selecting a row activates its queue.
         renderList(div, items, 'playlist');
         div.prepend(FlowUI.node('p', items.length ? `已載入 ${items.length} 首歌曲` : '歌單內沒有可顯示的歌曲。'));
     } catch (_) {
@@ -420,9 +497,8 @@ async function loadHistory() {
         if (historyItems.length === 0) {
             div.innerHTML = '<p style="text-align:center; color:#666; margin-top:20px;">尚無播放紀錄</p>';
         } else {
-            // 切換到歷史分頁時，將歷史紀錄設為當前 Queue
-            musicQueue = historyItems;
-            renderList(div, musicQueue, 'history');
+            // 瀏覽歷史不改動播放中的佇列；點選曲目後才切換。
+            renderList(div, historyItems, 'history');
         }
     } catch (e) { console.error("Load History Error:", e); }
 }

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Form, Request, Query
 from fastapi.responses import JSONResponse
 import yt_dlp
+import time
+from urllib.parse import parse_qs, urlsplit
 
 # ✅ 改用 SQLite
 from database import get_session_info, get_db, MusicHistory
@@ -70,7 +72,7 @@ async def get_playlist_items(request: Request, playlist_id: str = Query(min_leng
     except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 
 @router.get("/stream")
-async def get_audio_stream(request: Request, video_id: str):
+def get_audio_stream(request: Request, video_id: str):
     session = get_session_info(request.cookies.get("session_id"))
     if not session: return JSONResponse({"error": "Login Required"}, 401)
     import re
@@ -78,7 +80,10 @@ async def get_audio_stream(request: Request, video_id: str):
         return JSONResponse({"error": "Invalid video ID"}, 422)
     try:
         ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': 'bestaudio[ext=m4a][protocol=https]/bestaudio[ext=m4a]/bestaudio/best',
+            'socket_timeout': 10,
+            'retries': 1,
+            'extractor_retries': 1,
             'noplaylist': True,
             'quiet': True,
             'skip_download': True,
@@ -92,12 +97,18 @@ async def get_audio_stream(request: Request, video_id: str):
         url = f"https://www.youtube.com/watch?v={video_id}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            try:
+                expires_at = int(parse_qs(urlsplit(info['url']).query).get('expire', ['0'])[0])
+            except (ValueError, TypeError):
+                expires_at = 0
             return JSONResponse({
                 "url": info['url'], 
                 "title": info['title'], 
                 "channel": info.get('channel') or info.get('uploader') or '',
-                "thumbnail": info.get('thumbnail')
-            })
+                "thumbnail": info.get('thumbnail'),
+                "expires_at": expires_at or int(time.time()) + 300,
+                "format": info.get('ext', ''), "protocol": info.get('protocol', '')
+            }, headers={'Cache-Control': 'no-store'})
     except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 
 @router.get("/search")

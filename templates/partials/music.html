@@ -16,16 +16,17 @@
                 </div>
             </div>
 
-            <audio id="audio-player" style="display:none;"></audio>
+            <audio id="audio-player" preload="auto" style="display:none;"></audio>
 
             <div class="track-info-area">
                 <h2 id="current-track-title">請選擇歌曲</h2>
                 <p id="current-track-channel">YouTube Streaming</p>
+                <p id="music-playback-status" role="status" style="font-size:.8rem;color:var(--text-sub);min-height:1.5em"></p>
             </div>
 
             <div class="control-group">
                 <input type="range" id="progress-bar" class="slider-range" value="0" min="0" max="100"
-                    oninput="seekTo(this.value)">
+                    oninput="previewSeek(this.value)" onchange="seekTo(this.value)">
                 <div
                     style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-sub); margin-top:5px;">
                     <span id="current-time">0:00</span><span id="duration">0:00</span>
