@@ -52,3 +52,10 @@ Rebuild the application image to install the pinned CalDAV dependency, then recr
 - Populated Today uses summary cards and a two-column task layout on wide screens.
 - Mobile workspace navigation is collapsible, keyboard-closeable, and keeps content visible first.
 - Isolated real SQLite browser workflow passed including mobile navigation and workspace-to-project onboarding. No production database or deployment changed.
+
+
+## Music system media information — 2026-10-17
+
+The audio player now publishes Media Session title, author/channel, FocusFlow Music album label and cover artwork when the resolved track is selected. The existing stream extraction returns channel/uploader metadata too, so history entries need no extra provider lookup. Missing/unsafe cover URLs use the shipped local app icon. A request sequence prevents delayed old stream responses from replacing the selected track, system metadata or spinner state. Play/pause and bounded seeking update the system session; supported previous/next actions use the existing queue. Unsupported actions/APIs cannot block playback.
+
+Browser regression uses an isolated recorded Media Session and controlled audio events/provider responses: metadata, artwork, missing cover/author, stale responses, seeking boundaries, pause/resume and unsupported API paths. It does not prove physical iPhone lock-screen rendering or background longevity; owner acceptance should reload the site/PWA, play a song, lock the phone, check title/cover, then switch tracks and check controls. The system owns layout and available buttons. No database migration or background-playback guarantee is introduced.

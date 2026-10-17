@@ -1,5 +1,53 @@
 let musicQueue = [], currentTrackIndex = 0, isPlaying = false, loopMode = 0, isShuffle = false, currentSong = null;
 const audio = document.getElementById('audio-player');
+let playRequest = 0;
+const musicFallbackCover = new URL('/static/icons/icon-192.png', location.origin).href;
+function musicCover(value) { return typeof value === 'string' && value.trim() ? FlowUI.url(value) : ''; }
+
+function syncMediaMetadata(song) {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    try {
+        const cover = musicCover(song.thumbnail) || musicFallbackCover;
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: song.title || '未知曲目', artist: song.channel || 'YouTube',
+            album: 'FocusFlow Music', artwork: [{src: cover}]
+        });
+    } catch (_) { /* System metadata must never interrupt audio playback. */ }
+}
+
+function syncMediaPosition() {
+    if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+    try {
+        if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+            navigator.mediaSession.setPositionState(); return;
+        }
+        navigator.mediaSession.setPositionState({duration: audio.duration,
+            playbackRate: audio.playbackRate || 1,
+            position: Math.max(0, Math.min(audio.currentTime, audio.duration))});
+    } catch (_) { /* Not every browser implements position updates. */ }
+}
+
+function seekMedia(position) {
+    if (!Number.isFinite(position) || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    audio.currentTime = Math.max(0, Math.min(position, audio.duration));
+    syncMediaPosition();
+}
+
+function initMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    const handlers = {
+        play: () => { if (audio.src) audio.play().catch(() => showAlert('播放失敗', '請回播放器重新選擇歌曲。')); },
+        pause: () => audio.pause(),
+        previoustrack: () => playPrev(), nexttrack: () => playNext(),
+        seekbackward: details => seekMedia(audio.currentTime - (details.seekOffset || 10)),
+        seekforward: details => seekMedia(audio.currentTime + (details.seekOffset || 10)),
+        seekto: details => seekMedia(details.seekTime),
+        stop: () => { audio.pause(); seekMedia(0); }
+    };
+    for (const [action, handler] of Object.entries(handlers)) {
+        try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) { /* Unsupported action. */ }
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const cover = document.getElementById('player-art-container');
@@ -12,10 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // 初始化事件監聽
     if (audio) {
+        initMediaSession();
         audio.addEventListener('ended', onAudioEnded);
         audio.addEventListener('timeupdate', updateProgress);
         audio.addEventListener('play', () => updatePlayBtn(true));
         audio.addEventListener('pause', () => updatePlayBtn(false));
+        for (const event of ['loadedmetadata', 'durationchange', 'seeked', 'ratechange']) audio.addEventListener(event, syncMediaPosition);
     }
 });
 
@@ -118,27 +168,37 @@ async function playTrack(idx) {
         return;
     }
 
+    const requestId = ++playRequest;
     currentTrackIndex = idx;
     currentSong = musicQueue[idx];
+    const song = currentSong;
 
     // UI 更新
     document.getElementById('current-track-title').innerText = "解析中...";
-    document.getElementById('current-cover-img').src = currentSong.thumbnail || "https://via.placeholder.com/400?text=Music";
+    document.getElementById('current-cover-img').src = musicCover(song.thumbnail) || musicFallbackCover;
     document.getElementById('loading-spinner').style.display = 'flex';
 
     try {
-        const res = await fetch(`/api/music/stream?video_id=${currentSong.id}`);
+        const res = await fetch(`/api/music/stream?video_id=${encodeURIComponent(song.id)}`);
         const data = await res.json();
+        if (requestId !== playRequest) return;
 
-        if (data.url) {
+        if (res.ok && data.url) {
+            // Stream extraction also supplies metadata for history/playlist entries without an author.
+            song.title = data.title || song.title || '未知曲目';
+            song.channel = data.channel || song.channel || 'YouTube';
+            song.thumbnail = musicCover(data.thumbnail) || musicCover(song.thumbnail) || musicFallbackCover;
             audio.src = data.url;
+            document.getElementById('current-track-title').innerText = song.title;
+            document.getElementById('current-track-channel').innerText = song.channel;
+            document.getElementById('current-cover-img').src = song.thumbnail;
+            syncMediaMetadata(song);
+            syncMediaPosition();
             await audio.play();
-
-            document.getElementById('current-track-title').innerText = currentSong.title;
-            document.getElementById('current-track-channel').innerText = currentSong.channel || "YouTube";
+            if (requestId !== playRequest) return;
 
             // 加入歷史紀錄 (注意：欄位名稱必須與後端 routers/music.py 一致)
-            addToHistory(currentSong);
+            addToHistory(song);
 
             renderCurrentListState();
         } else {
@@ -146,10 +206,11 @@ async function playTrack(idx) {
             showAlert('播放失敗','無法取得音訊，請稍後再試或選擇其他歌曲。');
         }
     } catch (e) {
+        if (requestId !== playRequest) return;
         console.error("播放錯誤:", e);
         showAlert('播放失敗','目前無法播放，請稍後再試。');
     } finally {
-        document.getElementById('loading-spinner').style.display = 'none';
+        if (requestId === playRequest) document.getElementById('loading-spinner').style.display = 'none';
     }
 }
 
@@ -162,6 +223,10 @@ function renderCurrentListState() {
 
 function updatePlayBtn(playing) {
     isPlaying = playing;
+    if ('mediaSession' in navigator) {
+        try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; } catch (_) { }
+    }
+    syncMediaPosition();
     const btn = document.getElementById('btn-play-pause');
     if (btn) {
         if (playing) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
@@ -211,6 +276,7 @@ function playPrev() {
 }
 
 function updateProgress() {
+    syncMediaPosition();
     if (audio && audio.duration) {
         document.getElementById('progress-bar').value = (audio.currentTime / audio.duration) * 100;
         document.getElementById('current-time').innerText = fmt(audio.currentTime);

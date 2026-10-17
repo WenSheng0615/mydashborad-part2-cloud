@@ -107,6 +107,61 @@ with sync_playwright() as p:
  page.locator('#task-input').fill('Draft must stay',force=True) if False else page.evaluate("document.querySelector('#task-input').value='Draft must stay'")
  page.evaluate('addTask()')
  probes['taskDraftAfter500']=page.locator('#task-input').input_value()
+ # Lock-screen metadata/actions are recorded in an isolated page; no real audio/provider calls.
+ media=b.new_page()
+ media.route('**/*',intercept)
+ media.add_init_script("""window.mediaQA={handlers:{},positions:[]};
+ Object.defineProperty(navigator,'mediaSession',{configurable:true,value:{
+ metadata:null,playbackState:'none',setPositionState(s){mediaQA.positions.push(s||null)},
+ setActionHandler(action,handler){if(action==='stop')throw new Error('unsupported');mediaQA.handlers[action]=handler;}
+ }});""")
+ media.goto('http://127.0.0.1:8000/',wait_until='networkidle')
+ media.evaluate("""() => {
+ audio.play=()=>{audio.dispatchEvent(new Event('play'));return Promise.resolve()};
+ audio.pause=()=>audio.dispatchEvent(new Event('pause'));
+ Object.defineProperty(audio,'duration',{configurable:true,value:200});
+ Object.defineProperty(audio,'currentTime',{configurable:true,writable:true,value:12});
+ window.pendingTracks={};const original=window.fetch;
+ window.fetch=(url,...args)=>String(url).startsWith('/api/music/stream?')?
+   new Promise(resolve=>pendingTracks[new URL(url,location.origin).searchParams.get('video_id')]=resolve):original(url,...args);
+ musicQueue=[{id:'aaaaaaaaaaa',title:'Old selection'},{id:'bbbbbbbbbbb',title:'History without author'}];
+ window.firstPlay=playTrack(0);window.secondPlay=playTrack(1);
+ }""")
+ media.evaluate("""async () => {
+ pendingTracks.bbbbbbbbbbb(new Response(JSON.stringify({url:'/test-audio-b',title:'真正歌名',channel:'演出者頻道',thumbnail:'https://img.youtube.com/vi/bbbbbbbbbbb/hqdefault.jpg'}),{status:200}));
+ await secondPlay;
+ pendingTracks.aaaaaaaaaaa(new Response(JSON.stringify({url:'/test-audio-a',title:'Stale title',channel:'Old channel'}),{status:200}));
+ await firstPlay;
+ }""")
+ metadata=media.evaluate("""() => ({title:navigator.mediaSession.metadata.title,artist:navigator.mediaSession.metadata.artist,
+ artwork:navigator.mediaSession.metadata.artwork[0].src,source:audio.getAttribute('src'),state:navigator.mediaSession.playbackState})""")
+ assert metadata['title']=='真正歌名' and metadata['artist']=='演出者頻道',metadata
+ assert 'bbbbbbbbbbb' in metadata['artwork'] and metadata['source']=='/test-audio-b',metadata
+ assert metadata['state']=='playing',metadata
+ media.evaluate("mediaQA.handlers.pause();mediaQA.handlers.seekforward({seekOffset:999})")
+ assert media.evaluate('audio.currentTime')==200
+ assert media.evaluate('navigator.mediaSession.playbackState')=='paused'
+ media.evaluate("mediaQA.handlers.seekbackward({seekOffset:999});mediaQA.handlers.play()")
+ assert media.evaluate('audio.currentTime')==0
+ assert media.evaluate('navigator.mediaSession.playbackState')=='playing'
+ media.evaluate("mediaQA.handlers.seekto({seekTime:70})")
+ assert media.evaluate('mediaQA.positions.at(-1).position')==70
+ media.evaluate("""async () => {
+ mediaQA.handlers.previoustrack();
+ pendingTracks.aaaaaaaaaaa(new Response(JSON.stringify({url:'/test-audio-a',title:'Previous song',thumbnail:'javascript:alert(1)'}),{status:200}));
+ }""")
+ media.wait_for_function("navigator.mediaSession.metadata.title==='Previous song'")
+ assert media.evaluate('navigator.mediaSession.metadata.artist')=='YouTube'
+ assert media.evaluate('navigator.mediaSession.metadata.artwork[0].src').endswith('/static/icons/icon-192.png')
+ media.evaluate("syncMediaMetadata({title:'No cover supplied'})")
+ assert media.evaluate('navigator.mediaSession.metadata.artwork[0].src').endswith('/static/icons/icon-192.png')
+ media.evaluate("""() => {
+ Object.defineProperty(navigator,'mediaSession',{configurable:true,value:undefined});
+ delete navigator.mediaSession;delete Navigator.prototype.mediaSession;
+ syncMediaMetadata({title:'Unsupported browser'});updatePlayBtn(false);syncMediaPosition();
+ }""")
+ media.close()
+ probes['mediaSession']='metadata, artwork, race, fallback, controls and unsupported API PASS'
  report={'scope':'Mocked API, external CDN blocked; no real account mutations','panels':results,'missingHandlers':inventory,'probes':probes,'consoleErrors':errors}
  (out/'interface-test-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
  assert not inventory, inventory

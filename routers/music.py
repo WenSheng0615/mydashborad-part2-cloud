@@ -86,6 +86,7 @@ async def get_audio_stream(request: Request, video_id: str):
             return JSONResponse({
                 "url": info['url'], 
                 "title": info['title'], 
+                "channel": info.get('channel') or info.get('uploader') or '',
                 "thumbnail": info.get('thumbnail')
             })
     except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
