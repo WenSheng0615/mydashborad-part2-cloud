@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, Request, Query
 from fastapi.responses import JSONResponse
 import yt_dlp
 
@@ -40,24 +40,33 @@ async def get_my_playlists(request: Request):
         return JSONResponse({"playlists": []})
 
 @router.get("/playlist/items")
-async def get_playlist_items(request: Request, playlist_id: str):
+async def get_playlist_items(request: Request, playlist_id: str = Query(min_length=1, max_length=256),
+                             page_token: str = Query(default='', max_length=2048)):
     service, err = _youtube_service(request)
     if err: return err
     try:
-        req = service.playlistItems().list(part="snippet", playlistId=playlist_id, maxResults=50)
+        params = dict(part="snippet", playlistId=playlist_id, maxResults=50)
+        if page_token:
+            params['pageToken'] = page_token
+        req = service.playlistItems().list(**params)
         res = req.execute()
         
         items = []
         for i in res.get('items', []):
-            thumbs = i['snippet'].get('thumbnails', {})
+            snippet = i.get('snippet', {})
+            video_id = snippet.get('resourceId', {}).get('videoId')
+            if not video_id:
+                continue
+            thumbs = snippet.get('thumbnails', {})
             thumb_url = thumbs.get('medium', {}).get('url') or ''
             items.append({
-                'id': i['snippet']['resourceId']['videoId'], 
+                'id': video_id,
                 'itemId': i['id'], 
-                'title': i['snippet']['title'], 
-                'thumbnail': thumb_url
+                'title': snippet.get('title', '無法取得標題'),
+                'thumbnail': thumb_url,
+                'channel': snippet.get('videoOwnerChannelTitle', '')
             })
-        return JSONResponse({"items": items})
+        return JSONResponse({"items": items, "next_page_token": res.get('nextPageToken', '')})
     except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 
 @router.get("/stream")

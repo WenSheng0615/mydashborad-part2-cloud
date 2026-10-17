@@ -1,6 +1,7 @@
 let musicQueue = [], currentTrackIndex = 0, isPlaying = false, loopMode = 0, isShuffle = false, currentSong = null;
 const audio = document.getElementById('audio-player');
 let playRequest = 0;
+let playlistLoadController = null;
 const musicFallbackCover = new URL('/static/icons/icon-192.png', location.origin).href;
 function musicCover(value) { return typeof value === 'string' && value.trim() ? FlowUI.url(value) : ''; }
 
@@ -311,6 +312,7 @@ function toggleShuffle() {
 }
 
 function switchTab(name) {
+    if (name !== 'playlists') closePlaylist();
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
@@ -360,17 +362,50 @@ async function loadPlaylists() {
 }
 
 async function loadPlaylistItems(pid, title) {
+    if (playlistLoadController) playlistLoadController.abort();
+    const controller = new AbortController();
+    playlistLoadController = controller;
     document.getElementById('playlists-list').style.display = 'none';
     document.getElementById('playlist-detail').style.display = 'flex';
     document.getElementById('playlist-title').innerText = title;
     const div = document.getElementById('playlist-songs');
-    div.innerHTML = '<p style="text-align:center; margin-top:20px;">載入歌曲...</p>';
+    const status = FlowUI.node('p', '載入歌曲…');
+    status.setAttribute('role', 'status');
+    div.replaceChildren(status);
+    const items = [], pages = new Set();
+    let token = '';
     try {
-        const res = await fetch(`/api/music/playlist/items?playlist_id=${pid}`);
-        const data = await res.json();
-        musicQueue = data.items || [];
-        renderList(div, musicQueue, 'playlist');
-    } catch (e) { }
+        do {
+            if (pages.has(token)) throw new Error('Repeated playlist page');
+            pages.add(token);
+            const query = new URLSearchParams({playlist_id:pid});
+            if (token) query.set('page_token', token);
+            const timeout = setTimeout(() => controller.abort(), 20000);
+            let data;
+            try {
+                data = await FlowUI.request('/api/music/playlist/items?' + query, {signal:controller.signal});
+            } finally { clearTimeout(timeout); }
+            if (controller !== playlistLoadController) return;
+            if (!Array.isArray(data.items)) throw new Error('Invalid playlist page');
+            items.push(...data.items);
+            token = data.next_page_token || '';
+            if (typeof token !== 'string') throw new Error('Invalid playlist token');
+            status.textContent = `已讀取 ${items.length} 首，${token ? '繼續載入…' : '載入完成。'}`;
+        } while (token);
+        if (controller !== playlistLoadController) return;
+        // Only replace the queue once every page succeeded; never present a partial playlist as complete.
+        musicQueue = items;
+        renderList(div, items, 'playlist');
+        div.prepend(FlowUI.node('p', items.length ? `已載入 ${items.length} 首歌曲` : '歌單內沒有可顯示的歌曲。'));
+    } catch (_) {
+        if (controller !== playlistLoadController) return;
+        status.textContent = `歌單尚未載入完成（已讀取 ${items.length} 首），請重試。原播放佇列已保留。`;
+        const retry = FlowUI.node('button', '重新載入歌曲', 'btn-tool');
+        retry.type = 'button'; retry.onclick = () => loadPlaylistItems(pid, title);
+        div.replaceChildren(status, retry);
+    } finally {
+        if (controller === playlistLoadController) playlistLoadController = null;
+    }
 }
 
 async function loadHistory() {
@@ -427,7 +462,7 @@ function renderList(div, items, type='search') {
         row.onclick=()=>{musicQueue=items;playTrack(index);};div.append(row);
     });
 }
-function closePlaylist(){document.getElementById('playlist-detail').style.display='none';document.getElementById('playlists-list').style.display='';}
+function closePlaylist(){if(playlistLoadController)playlistLoadController.abort();playlistLoadController=null;document.getElementById('playlist-detail').style.display='none';document.getElementById('playlists-list').style.display='';}
 
 window.addEventListener('modules-changed', () => {
     if (!FlowModules.isEnabled('music') && audio) audio.pause();

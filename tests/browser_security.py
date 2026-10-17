@@ -1,4 +1,5 @@
 import json
+from urllib.parse import parse_qs, urlsplit
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from jinja2 import Environment, FileSystemLoader
@@ -108,7 +109,8 @@ with sync_playwright() as p:
  page.evaluate('addTask()')
  probes['taskDraftAfter500']=page.locator('#task-input').input_value()
  # Lock-screen metadata/actions are recorded in an isolated page; no real audio/provider calls.
- media=b.new_page()
+ media=b.new_page(viewport={'width':390,'height':844})
+ media.on('pageerror',lambda e:errors.append(str(e)))
  media.route('**/*',intercept)
  media.add_init_script("""window.mediaQA={handlers:{},positions:[]};
  Object.defineProperty(navigator,'mediaSession',{configurable:true,value:{
@@ -160,6 +162,52 @@ with sync_playwright() as p:
  delete navigator.mediaSession;delete Navigator.prototype.mediaSession;
  syncMediaMetadata({title:'Unsupported browser'});updatePlayBtn(false);syncMediaPosition();
  }""")
+ # A 237-item playlist spans five provider pages, retaining order and repeated videos.
+ media.evaluate("async()=>{await openApp('music');switchTab('playlists')}")
+ playlist_calls=[]
+ def playlist_page(route):
+  query=parse_qs(urlsplit(route.request.url).query)
+  token=query.get('page_token',[''])[0]
+  number=int(token.split(':')[1].split('+')[0]) if token else 0
+  playlist_calls.append(number)
+  start=number*50;end=min(start+50,237)
+  items=[{'id':str(i if i!=70 else 1).zfill(11),'itemId':f'item-{i}','title':f'Track {i+1}'} for i in range(start,end)]
+  route.fulfill(json={'items':items,'next_page_token':f'page:{number+1}+/=' if end<237 else ''})
+ media.route('**/api/music/playlist/items?*',playlist_page)
+ media.evaluate("loadPlaylistItems('PL-test','Long playlist')")
+ assert playlist_calls==[0,1,2,3,4],playlist_calls
+ assert media.locator('#playlist-songs .track-item').count()==237
+ assert media.locator('#playlist-songs .track-title').last.inner_text()=='Track 237'
+ assert media.evaluate('musicQueue.length')==237
+ media.locator('#playlist-songs .track-item').last.scroll_into_view_if_needed()
+ media.locator('#playlist-songs .track-item').last.click()
+ assert media.evaluate('currentTrackIndex')==236
+ assert media.evaluate('currentSong.title')=='Track 237'
+ # Failure on page two must not silently replace the queue with the first 50 songs.
+ def playlist_failure(route):
+  if 'page_token' in parse_qs(urlsplit(route.request.url).query):
+   route.fulfill(status=503,json={'error':'Simulated provider outage'})
+  else:playlist_page(route)
+ media.route('**/api/music/playlist/items?*',playlist_failure)
+ media.evaluate("loadPlaylistItems('PL-failure','Interrupted playlist')")
+ assert media.evaluate('musicQueue.length')==237
+ assert media.locator('#playlist-songs .track-item').count()==0
+ assert media.get_by_role('button',name='重新載入歌曲',exact=True).count()==1
+ assert '已讀取 50 首' in media.locator('#playlist-songs').inner_text()
+ media.unroute('**/api/music/playlist/items?*',playlist_failure)
+ media.get_by_role('button',name='重新載入歌曲',exact=True).click()
+ media.wait_for_function("document.querySelectorAll('#playlist-songs .track-item').length===237")
+ # Closing the view invalidates a pending older load, even if its response arrives later.
+ media.evaluate("""async () => {
+ const original=window.fetch;
+ window.fetch=(url,...args)=>String(url).startsWith('/api/music/playlist/items?')?
+   new Promise(resolve=>window.latePlaylist=resolve):original(url,...args);
+ const loading=loadPlaylistItems('PL-late','Old request');closePlaylist();
+ latePlaylist(new Response(JSON.stringify({items:[{id:'late',title:'Stale song'}]}),{status:200}));
+ await loading;
+ }""")
+ assert media.evaluate('musicQueue.length')==237
+ probes['playlistPagination']='237 songs/5 pages, order, last-song playback, partial failure and cancelled response PASS'
  media.close()
  probes['mediaSession']='metadata, artwork, race, fallback, controls and unsupported API PASS'
  report={'scope':'Mocked API, external CDN blocked; no real account mutations','panels':results,'missingHandlers':inventory,'probes':probes,'consoleErrors':errors}
@@ -168,5 +216,6 @@ with sync_playwright() as p:
  assert probes['tasks'] is False and probes['money']==0 and probes['music'] is False, probes
  assert probes['executed']==0 and not probes['taskUndefined'],probes
  assert probes['taskDraftAfter500']=='Draft must stay',probes
+ assert not errors,errors
  print(json.dumps(report,ensure_ascii=True))
  b.close()
