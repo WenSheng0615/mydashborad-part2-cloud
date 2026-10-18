@@ -89,10 +89,12 @@ with sync_playwright() as p:
  assert page.evaluate('currentDate.getMonth()') == 1
  page.screenshot(path=str(out/'calendar-mobile.png'),full_page=True)
  page.evaluate("openApp('music'); window.coverClicks=0; audio.pause=()=>window.coverClicks++; Object.defineProperty(audio,'paused',{configurable:true,get:()=>false}); audio.src='/test-audio'")
+ page.evaluate('showFullMusicPlayer()')
  page.locator('#player-art-container').click()
  assert page.evaluate('window.coverClicks') == 1
  page.locator('#player-art-container').press('Enter')
  assert page.evaluate('window.coverClicks') == 2
+ page.evaluate('closeFullMusicPlayer()')
  # Controlled payloads are injected only into this mocked browser session.
  probes=page.evaluate('''() => {
  window.qaInjection=0;
@@ -316,13 +318,46 @@ with sync_playwright() as p:
  media.evaluate('currentTrackIndex=236;syncMiniPlayer()')
  assert media.evaluate('document.documentElement.scrollWidth<=innerWidth')
  media.screenshot(path=str(out/'music-mini-mobile.png'))
- media.get_by_role('button',name='回到完整播放器',exact=True).click()
- media.wait_for_function("document.querySelector('#view-music .music-layout').scrollTop<2")
- assert media.locator('#music-mini-player').is_hidden()
+ # The tab strip and player stay above the list, even at item 237.
+ tabs_box=media.locator('#view-music > .tab-group').bounding_box()
+ mini_box=media.locator('#music-mini-player').bounding_box()
+ assert tabs_box['y']+tabs_box['height']<=mini_box['y']+1
+ scroll=media.locator('#playlist-songs').evaluate('(e)=>e.scrollTop')
+ assert scroll>0
+ media.get_by_role('button',name='展開完整播放器',exact=True).click()
+ assert media.locator('#music-player-dialog').is_visible()
+ assert media.locator('#music-player-dialog .now-playing').count()==1
+ assert media.locator('audio').count()==1
+ assert media.locator('#audio-player').evaluate("e=>e.parentElement.id==='view-music'")
+ media.screenshot(path=str(out/'music-sheet-mobile.png'))
+ media.keyboard.press('Escape')
+ assert media.locator('#music-player-dialog').is_hidden()
+ assert media.locator('#playlist-songs').evaluate('(e)=>e.scrollTop')==scroll
+ assert media.get_by_role('button',name='展開完整播放器',exact=True).evaluate('(e)=>e===document.activeElement')
+ assert media.locator('#music-mini-player').is_visible()
+ media.set_viewport_size({'width':320,'height':700})
+ assert media.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ media.get_by_role('button',name='展開完整播放器',exact=True).click()
+ assert media.locator('#music-player-dialog').evaluate('(e)=>e.scrollWidth<=e.clientWidth+1')
+ media.get_by_role('button',name='收合完整播放器',exact=True).click()
+ assert media.locator('#music-player-dialog').is_hidden()
+ media.set_viewport_size({'width':390,'height':844})
+ media.get_by_role('tab',name='歌單',exact=True).focus()
+ media.keyboard.press('ArrowRight')
+ assert media.get_by_role('tab',name='紀錄',exact=True).get_attribute('aria-selected')=='true'
+ media.evaluate("switchTab('playlists')")
  # Desktop retains the existing complete player.
+ media.evaluate('window.beforeResizePlays=window.playCalls')
  media.set_viewport_size({'width':1440,'height':900})
  assert media.locator('#music-mini-player').is_hidden()
+ media.locator('.music-layout > .now-playing').wait_for(state='attached')
+ assert media.locator('.music-layout > .now-playing').count()==1
+ assert media.locator('.playlist-side > .tab-group').count()==1
+ assert media.locator('#music-player-dialog').is_hidden()
  media.set_viewport_size({'width':390,'height':844})
+ media.locator('#view-music > .tab-group').wait_for(state='attached')
+ assert media.evaluate('window.playCalls===beforeResizePlays')
+ assert media.locator('#audio-player').evaluate("e=>e.parentElement.id==='view-music'")
  # Failure on page two must not silently replace the queue with the first 50 songs.
  def playlist_failure(route):
   if 'page_token' in parse_qs(urlsplit(route.request.url).query):
