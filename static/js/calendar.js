@@ -8,7 +8,6 @@ async function initCalendar() {
     // 確保回到今天時更新變數
     if (!selectedDateStr) selectedDateStr = new Date().toLocaleDateString('en-CA');
     renderCalendar();
-    document.getElementById('cal-month-title').innerText += " (同步中...)";
     await fetchEvents();
 }
 

@@ -40,11 +40,7 @@ async function loadFiles(fid = 'root', q = '', type = '') {
     const c = document.getElementById('file-container');
     const btnBack = document.getElementById('btn-back');
 
-    c.innerHTML = `
-        <div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#888;">
-            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem; margin-bottom:10px; color:var(--accent);"></i>
-            <p>讀取中...</p>
-        </div>`;
+    c.replaceChildren(FlowUI.skeleton());
 
     if (fid !== 'root') btnBack.disabled = false; else btnBack.disabled = true;
     currentFolderId = fid;

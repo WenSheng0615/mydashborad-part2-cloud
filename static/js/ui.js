@@ -5,6 +5,22 @@ window.FlowUI = {
         if (className) el.className = className;
         return el;
     },
+    skeleton(label = '正在取得內容') {
+        const state = this.node('div', null, 'content-skeleton');
+        state.setAttribute('role', 'status');
+        state.append(this.node('span', label, 'loading-sr-label'));
+        const rows = this.node('div', null, 'content-skeleton-rows');
+        rows.setAttribute('aria-hidden', 'true');
+        for (let i = 0; i < 5; i++) {
+            const row = this.node('div', null, 'content-skeleton-row');
+            const lines = this.node('div', null, 'content-skeleton-lines');
+            lines.append(this.node('span'), this.node('span'));
+            row.append(this.node('span', null, 'content-skeleton-cover'), lines);
+            rows.append(row);
+        }
+        state.append(rows);
+        return state;
+    },
     url(value) {
         try {
             const url = new URL(value, location.origin);

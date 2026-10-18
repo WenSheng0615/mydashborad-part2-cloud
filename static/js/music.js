@@ -498,54 +498,71 @@ function switchTab(name) {
     if (targetTab) targetTab.classList.add('active');
 }
 
-async function searchYouTube() {
-    const q = document.getElementById('yt-search-input').value;
-    if (!q) return;
-
-    const div = document.getElementById('yt-results');
-    div.innerHTML = '<p style="text-align:center; margin-top:20px;">搜尋中...</p>';
-
-    try {
-        const res = await fetch(`/api/music/search?query=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        if (data.error) {
-            div.textContent = data.error;
-            return;
-        }
-        renderList(div, data.items || [], 'search');
-    } catch (e) {
-        div.innerHTML = '<p style="color:#ff4d4f; text-align:center;">連線錯誤</p>';
+// Preserve a completed view while refreshing; only first visits show static shapes.
+const musicListRequests = new WeakMap();
+async function refreshMusicList(div, url, render, retry) {
+    const previous = musicListRequests.get(div);
+    if (previous?.url === url) return;
+    previous?.controller.abort();
+    const request = {url, controller: new AbortController()};
+    musicListRequests.set(div, request);
+    const keepContent = div.dataset.musicSource === url;
+    div.querySelector('.content-refresh-error')?.remove();
+    if (!keepContent) {
+        delete div.dataset.musicSource;
+        div.replaceChildren(FlowUI.skeleton());
     }
+    div.setAttribute('aria-busy', 'true');
+    const timeout = setTimeout(() => request.controller.abort(), 20000);
+    try {
+        const data = await FlowUI.request(url, {signal: request.controller.signal});
+        if (musicListRequests.get(div) !== request) return;
+        if (data.error) throw new Error('Provider unavailable');
+        render(data);
+        div.dataset.musicSource = url;
+    } catch (_) {
+        if (musicListRequests.get(div) !== request) return;
+        const state = FlowUI.node('div', null, 'content-refresh-error');
+        state.setAttribute('role', 'status');
+        state.append(FlowUI.node('span', keepContent ? '暫時無法更新，已保留目前內容。' : '暫時無法取得內容，請再試一次。'));
+        const button = FlowUI.node('button', '重試');
+        button.type = 'button';button.onclick = retry;state.append(button);
+        if (keepContent) div.append(state); else div.replaceChildren(state);
+    } finally {
+        clearTimeout(timeout);
+        if (musicListRequests.get(div) === request) {
+            div.setAttribute('aria-busy', 'false');
+            musicListRequests.delete(div);
+        }
+    }
+}
+
+async function searchYouTube() {
+    const q = document.getElementById('yt-search-input').value.trim();
+    if (!q) return;
+    const div = document.getElementById('yt-results');
+    return refreshMusicList(div, `/api/music/search?query=${encodeURIComponent(q)}`,
+        data => {
+            const items = data.items || [];
+            renderList(div, items, 'search');
+            if (!items.length) div.append(FlowUI.node('p', '找不到符合的歌曲，試試其他關鍵字。'));
+        }, searchYouTube);
 }
 
 async function loadPlaylists() {
     const div = document.getElementById('playlists-list');
-    div.innerHTML = '<p style="text-align:center; margin-top:20px;">載入中...</p>';
-    try {
-        const res = await fetch('/api/music/playlists');
-        const data = await res.json();
+    return refreshMusicList(div, '/api/music/playlists', data => {
         const playlists = data.playlists || [];div.replaceChildren();
-        if(!playlists.length){div.append(FlowUI.node('p','沒有找到歌單'));return;}
-        for(const playlist of playlists){
-            const row=musicRow(playlist.title,`${playlist.count} songs`,playlist.thumbnail);
-            row.onclick=()=>loadPlaylistItems(playlist.id,playlist.title);div.append(row);
+        if (!playlists.length) {div.append(FlowUI.node('p', '沒有找到歌單'));return;}
+        for (const playlist of playlists) {
+            const row = musicRow(playlist.title, `${playlist.count} songs`, playlist.thumbnail);
+            row.onclick = () => loadPlaylistItems(playlist.id, playlist.title);div.append(row);
         }
-    } catch (e) { }
+    }, loadPlaylists);
 }
 
 function playlistLoadingState() {
-    const state = FlowUI.node('div', null, 'playlist-loading');
-    const label = FlowUI.node('p', '正在載入歌單', 'playlist-loading-label');
-    label.setAttribute('role', 'status');state.append(label);
-    const skeleton = FlowUI.node('div', null, 'playlist-skeleton');
-    skeleton.setAttribute('aria-hidden', 'true');
-    for (let i = 0; i < 5; i++) {
-        const row = FlowUI.node('div', null, 'playlist-skeleton-row');
-        const lines = FlowUI.node('div', null, 'playlist-skeleton-lines');
-        lines.append(FlowUI.node('span'), FlowUI.node('span'));
-        row.append(FlowUI.node('span', null, 'playlist-skeleton-cover'), lines);skeleton.append(row);
-    }
-    state.append(skeleton);return state;
+    return FlowUI.skeleton('正在載入歌單');
 }
 
 async function loadPlaylistItems(pid, title) {
@@ -598,19 +615,12 @@ async function loadPlaylistItems(pid, title) {
 async function loadHistory() {
     const div = document.getElementById('history-list');
     if (!div) return;
-    div.innerHTML = '<p style="text-align:center; margin-top:20px;">讀取中...</p>';
-    try {
-        const res = await fetch('/api/music/history');
-        const data = await res.json();
-        // 這裡後端回傳的是 {"items": [...]}
-        const historyItems = data.items || [];
-        if (historyItems.length === 0) {
-            div.innerHTML = '<p style="text-align:center; color:#666; margin-top:20px;">尚無播放紀錄</p>';
-        } else {
-            // 瀏覽歷史不改動播放中的佇列；點選曲目後才切換。
-            renderList(div, historyItems, 'history');
-        }
-    } catch (e) { console.error("Load History Error:", e); }
+    return refreshMusicList(div, '/api/music/history', data => {
+        const items = data.items || [];
+        // Browsing history never replaces the active playback queue.
+        renderList(div, items, 'history');
+        if (!items.length) div.append(FlowUI.node('p', '尚無播放紀錄'));
+    }, loadHistory);
 }
 
 async function addToHistory(s) {

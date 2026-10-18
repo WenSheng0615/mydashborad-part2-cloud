@@ -346,7 +346,7 @@ with sync_playwright() as p:
    new Promise(resolve=>window.latePlaylist=resolve):original(url,...args);
  window.cancelledPlaylist=loadPlaylistItems('PL-late','Old request');
  }""")
- assert media.locator('.playlist-skeleton-row').count()==5
+ assert media.locator('.content-skeleton-row').count()==5
  assert media.locator('#playlist-songs').get_attribute('aria-busy')=='true'
  assert media.locator('#playlist-songs').inner_text()=='正在載入歌單'
  media.evaluate("""async () => {
@@ -357,6 +357,88 @@ with sync_playwright() as p:
  assert media.evaluate('musicQueue.length')==237
  probes['playlistPagination']='237 songs/5 pages, order, last-song playback, partial failure and cancelled response PASS'
  media.close()
+ # Delayed responses exercise first-load shapes, repeat visits and real failures.
+ loading=b.new_page(viewport={'width':390,'height':844})
+ loading.on('pageerror',lambda e:errors.append(str(e)))
+ loading.route('**/*',intercept)
+ loading.goto('http://127.0.0.1:8000/',wait_until='networkidle')
+ loading.evaluate("openApp('music')")
+ loading.wait_for_timeout(400)
+ pending=[]
+ loading.route('**/api/music/playlists',lambda route:pending.append(route))
+ loading.evaluate("switchTab('playlists')")
+ loading.wait_for_function("document.querySelector('#playlists-list .content-skeleton')!==null")
+ assert loading.locator('#playlists-list .content-skeleton-row').count()==5
+ assert loading.locator('#playlists-list').get_attribute('aria-busy')=='true'
+ assert loading.locator('.content-skeleton-rows').first.evaluate("e=>getComputedStyle(e).animationName")=='none'
+ loading.locator('#playlists-list').scroll_into_view_if_needed()
+ loading.screenshot(path=str(out/'music-loading-mobile.png'))
+ loading.set_viewport_size({'width':1440,'height':900})
+ assert loading.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ loading.screenshot(path=str(out/'music-loading-desktop.png'))
+ loading.set_viewport_size({'width':390,'height':844})
+ loading.wait_for_function('true')
+ assert len(pending)==1
+ loading.evaluate("void loadPlaylists()")
+ loading.wait_for_timeout(50)
+ assert len(pending)==1  # Repeated navigation must not duplicate a pending request.
+ pending.pop().fulfill(status=200,json={'playlists':[{'id':'PL-qa','title':'Saved playlist','count':237}]})
+ loading.wait_for_function("document.querySelector('#playlists-list').textContent.includes('Saved playlist')")
+ loading.evaluate("switchTab('search');switchTab('playlists')")
+ loading.wait_for_function("document.querySelector('#playlists-list').getAttribute('aria-busy')==='true'")
+ assert loading.locator('#playlists-list .content-skeleton').count()==0
+ assert 'Saved playlist' in loading.locator('#playlists-list').inner_text()
+ loading.wait_for_timeout(50)
+ pending.pop().fulfill(status=503,json={'error':'private provider diagnostic'})
+ loading.get_by_role('button',name='重試',exact=True).wait_for()
+ assert 'Saved playlist' in loading.locator('#playlists-list').inner_text()
+ assert 'private provider diagnostic' not in loading.locator('#playlists-list').inner_text()
+ assert loading.locator('#playlists-list').get_attribute('aria-busy')=='false'
+ loading.get_by_role('button',name='重試',exact=True).click()
+ loading.wait_for_timeout(50)
+ pending.pop().fulfill(status=200,json={'playlists':[]})
+ loading.wait_for_function("document.querySelector('#playlists-list').getAttribute('aria-busy')==='false'")
+ assert loading.locator('#playlists-list .content-refresh-error').count()==0
+ histories=[]
+ loading.route('**/api/music/history',lambda route:histories.append(route))
+ loading.evaluate("delete document.querySelector('#history-list').dataset.musicSource;switchTab('history')")
+ loading.wait_for_function("document.querySelector('#history-list .content-skeleton')!==null")
+ loading.wait_for_timeout(50)
+ histories.pop().fulfill(status=200,json={'items':[{'id':'aaaaaaaaaaa','title':'Recent song'}]})
+ loading.wait_for_function("document.querySelector('#history-list').textContent.includes('Recent song')")
+ loading.evaluate("switchTab('search');switchTab('history')")
+ assert 'Recent song' in loading.locator('#history-list').inner_text()
+ assert loading.locator('#history-list .content-skeleton').count()==0
+ loading.wait_for_timeout(50)
+ histories.pop().fulfill(status=200,json={'items':[]})
+ loading.wait_for_function("document.querySelector('#history-list').getAttribute('aria-busy')==='false'")
+ assert loading.evaluate('musicQueue.length')==0
+ # Search races must not allow an older query to overwrite the current one.
+ searches=[]
+ loading.route('**/api/music/search?*',lambda route:searches.append(route))
+ loading.evaluate("switchTab('search');document.querySelector('#yt-search-input').value='first';void searchYouTube()")
+ loading.wait_for_timeout(50)
+ loading.evaluate("document.querySelector('#yt-search-input').value='second';void searchYouTube()")
+ loading.wait_for_timeout(50)
+ assert len(searches)==2
+ searches[1].fulfill(status=200,json={'items':[{'id':'bbbbbbbbbbb','title':'Newest result'}]})
+ loading.wait_for_function("document.querySelector('#yt-results').textContent.includes('Newest result')")
+ searches[0].fulfill(status=200,json={'items':[{'id':'aaaaaaaaaaa','title':'Stale result'}]})
+ loading.wait_for_timeout(50)
+ assert 'Stale result' not in loading.locator('#yt-results').inner_text()
+ # Other app entry points use the same static, responsive visual language.
+ files=[]
+ loading.route('**/api/drive/files?*',lambda route:files.append(route))
+ loading.evaluate("openApp('drive')")
+ loading.wait_for_function("document.querySelector('#file-container .content-skeleton')!==null")
+ assert loading.locator('#file-container .fa-spin').count()==0
+ assert loading.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ loading.wait_for_timeout(400)
+ loading.screenshot(path=str(out/'drive-loading-mobile.png'))
+ for route in files:route.fulfill(status=200,json={'files':[]})
+ loading.wait_for_function("document.querySelector('#file-container .content-skeleton')===null")
+ loading.close()
+ probes['loadingPresentation']='static placeholders, retained refresh, retry, deduplication, stale search isolation and mobile Drive PASS'
  probes['mediaSession']='metadata, prepared transition, buffering state, scrub, warm-up failure, controls and unsupported API PASS'
  report={'scope':'Mocked API, external CDN blocked; no real account mutations','panels':results,'missingHandlers':inventory,'probes':probes,'consoleErrors':errors}
  (out/'interface-test-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')

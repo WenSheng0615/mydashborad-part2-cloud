@@ -1,3 +1,19 @@
+/* Static loading shapes: no spinner, shimmer, timer or layout animation. */
+.loading-sr-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+.content-skeleton{position:relative;width:100%;min-width:0;grid-column:1/-1;padding:8px 0 16px;box-sizing:border-box}
+.content-skeleton-rows{display:grid;gap:6px}
+.content-skeleton-row{display:flex;align-items:center;gap:14px;padding:12px 8px;min-height:52px}
+.content-skeleton-cover{flex:none;width:48px;height:48px;border-radius:10px;background:var(--input-bg)}
+.content-skeleton-lines{flex:1;min-width:0;display:grid;gap:10px}
+.content-skeleton-lines span{height:10px;width:70%;max-width:230px;background:var(--input-bg);border-radius:5px}
+.content-skeleton-lines span+span{width:38%;height:8px;max-width:130px}
+.content-skeleton-row:nth-child(even) .content-skeleton-lines span:first-child{width:58%}
+.grid-files>.content-skeleton .content-skeleton-rows{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:15px}
+.grid-files>.content-skeleton .content-skeleton-row{flex-direction:column;align-items:stretch;min-height:160px;padding:0;border:1px solid var(--border-color);border-radius:12px;overflow:hidden}
+.grid-files>.content-skeleton .content-skeleton-cover{width:100%;height:100px;border-radius:0}
+.grid-files>.content-skeleton .content-skeleton-lines{padding:8px 12px}
+.content-refresh-error{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:16px 8px;color:var(--text-sub);font-size:.85rem}
+.content-refresh-error button{min-height:44px;padding:8px 16px;border:1px solid var(--border-color);border-radius:10px;background:var(--input-bg);color:var(--text-main);cursor:pointer}
 /* Shared controls; layout and specialized players remain feature-owned. */
 body { font-family: var(--font-ui); }
 button, input, textarea, select { font-family: inherit; }
