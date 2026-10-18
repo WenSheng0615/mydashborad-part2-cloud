@@ -59,13 +59,31 @@ function mediaStatus(text) {
     const status = document.getElementById('music-playback-status');
     if (status) status.textContent = text;
 }
+let playbackObservation = null;
+function observePlaybackPosition() {
+    const now = performance.now(), position = audio.currentTime;
+    const previous = playbackObservation;
+    playbackObservation = {src:audio.src,position,time:now};
+    if (!previous || previous.src !== audio.src || audio.paused || audio.ended || audio.seeking || audio.error || audio.readyState < 2) return;
+    const moved = position - previous.position;
+    const plausible = Math.max(2, (now - previous.time) / 1000 * (audio.playbackRate || 1) * 3);
+    // Actual forward progress recovers a missed/late playing event, not a seek jump or timer.
+    if (moved > 0 && moved <= plausible) {
+        if (mediaWaiting) setMediaWaiting(false);
+        if (!isPlaying) updatePlayBtn(true);
+    }
+}
+function resetPlaybackObservation() {
+    playbackObservation = {src:audio.src,position:audio.currentTime,time:performance.now()};
+}
 function setMediaWaiting(waiting) {
     mediaWaiting = waiting;
+    if (waiting) resetPlaybackObservation();
     if ('mediaSession' in navigator) {
         try { navigator.mediaSession.playbackState = !waiting && !audio.paused && !audio.ended ? 'playing' : 'paused'; } catch (_) { }
     }
     syncMediaPosition();
-    mediaStatus(waiting ? '正在載入音訊，尚未開始播放…' : '');
+    mediaStatus(waiting ? '正在緩衝音訊…' : '');
 }
 
 let sourceDuration = null, sourceIsLive = false, playbackFinished = false;
@@ -157,12 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const event of ['pointercancel', 'blur']) slider.addEventListener(event, () => { isSeekingPreview = false; updateProgress(); });
         audio.addEventListener('ended', onAudioEnded);
         audio.addEventListener('timeupdate', updateProgress);
-        audio.addEventListener('play', () => { playbackFinished = false; mediaWaiting = true; updatePlayBtn(true); });
+        audio.addEventListener('play', () => { playbackFinished = false; mediaWaiting = true; resetPlaybackObservation(); updatePlayBtn(true); });
         audio.addEventListener('playing', () => { setMediaWaiting(false); updatePlayBtn(true); });
         audio.addEventListener('waiting', () => setMediaWaiting(true));
         audio.addEventListener('seeking', () => setMediaWaiting(true));
         audio.addEventListener('error', () => { setMediaWaiting(true); mediaStatus('音訊載入失敗，請回播放器重試或重新選擇歌曲。'); });
-        audio.addEventListener('pause', () => { mediaWaiting = false; updatePlayBtn(false); });
+        audio.addEventListener('pause', () => { mediaWaiting = false; resetPlaybackObservation(); updatePlayBtn(false); if (!audio.error) mediaStatus(''); });
+        audio.addEventListener('seeked', () => { resetPlaybackObservation(); if (audio.paused) { mediaWaiting = false; if (!audio.error) mediaStatus(''); updatePlayBtn(false); } });
         for (const event of ['loadedmetadata', 'durationchange', 'seeked', 'ratechange']) audio.addEventListener(event, syncMediaPosition);
     }
 });
@@ -381,6 +400,7 @@ function playPrev() {
 }
 
 function updateProgress() {
+    observePlaybackPosition();
     if (finishInflatedTail()) return;
     const duration = playbackDuration();
     syncMediaPosition();

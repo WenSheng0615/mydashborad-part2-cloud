@@ -171,10 +171,25 @@ with sync_playwright() as p:
  media.evaluate("audio.dispatchEvent(new Event('waiting'))")
  assert media.evaluate('navigator.mediaSession.playbackState')=='paused'
  assert media.evaluate('mediaQA.positions.at(-1)') is None
- assert '正在載入音訊' in media.locator('#music-playback-status').inner_text()
+ assert '正在緩衝音訊' in media.locator('#music-playback-status').inner_text()
  media.evaluate("audio.dispatchEvent(new Event('playing'))")
  assert media.evaluate('navigator.mediaSession.playbackState')=='playing'
  assert media.locator('#music-playback-status').inner_text()==''
+ # Recover when Safari resumes time progression without another playing event.
+ media.evaluate("""() => {
+ Object.defineProperty(audio,'paused',{configurable:true,get:()=>false});
+ Object.defineProperty(audio,'readyState',{configurable:true,get:()=>2});
+ audio.dispatchEvent(new Event('waiting'));updatePlayBtn(false);
+ audio.currentTime+=.25;audio.dispatchEvent(new Event('timeupdate'));
+ }""")
+ assert media.locator('#music-playback-status').inner_text()==''
+ assert media.evaluate("isPlaying && navigator.mediaSession.playbackState==='playing'")
+ media.evaluate("audio.dispatchEvent(new Event('waiting'));audio.currentTime+=50;audio.dispatchEvent(new Event('timeupdate'))")
+ assert media.evaluate('mediaWaiting')  # Seeking alone cannot establish real playback.
+ media.evaluate("Object.defineProperty(audio,'paused',{configurable:true,get:()=>true});audio.dispatchEvent(new Event('pause'))")
+ assert media.locator('#music-playback-status').inner_text()==''
+ assert media.evaluate("!isPlaying && navigator.mediaSession.playbackState==='paused'")
+ media.evaluate("Object.defineProperty(audio,'paused',{configurable:true,get:()=>false})")
  # Resolving one song starts preparation of only the next, before ended is fired.
  media.evaluate("""async () => {
  musicQueue=[{id:'ccccccccccc',title:'Current'},{id:'ddddddddddd',title:'Next'}];
