@@ -73,13 +73,12 @@ function syncMiniPlayer() {
     toggle.setAttribute('aria-label', isPlaying ? '暫停' : '播放');
     toggle.querySelector('path').setAttribute('d', isPlaying ? 'M6 5h4v14H6z M14 5h4v14h-4z' : 'M8 5v14l11-7z');
 }
+let musicSheet = null;
 function showFullMusicPlayer() {
-    const dialog = document.getElementById('music-player-dialog');
-    if (!matchMedia('(max-width:768px)').matches || dialog.open) return;
-    dialog.showModal();syncMiniPlayer();
+    musicSheet?.open();syncMiniPlayer();
 }
 function closeFullMusicPlayer() {
-    document.getElementById('music-player-dialog').close();
+    musicSheet?.close();
 }
 function initMiniPlayer() {
     const view = document.getElementById('view-music');
@@ -90,22 +89,18 @@ function initMiniPlayer() {
     const mini = document.getElementById('music-mini-player');
     const dialog = document.getElementById('music-player-dialog');
     const mobile = matchMedia('(max-width:768px)');
+    musicSheet = createMusicSheet({sheet:dialog,grip:document.getElementById('music-sheet-grip'),cover:document.getElementById('player-art-container')});
     // Only controls move: the single audio node stays connected at the view root.
     const updateLayout = () => {
         if (mobile.matches) {
             view.insertBefore(tabs, mini);
             document.getElementById('music-sheet-body').append(player);
         } else {
-            dialog.close();layout.prepend(player);side.prepend(tabs);
+            musicSheet.closeNow();layout.prepend(player);side.prepend(tabs);
         }
         syncMiniPlayer();
     };
     dialog.addEventListener('close', syncMiniPlayer);
-    dialog.addEventListener('click', event => {
-        if (event.target !== dialog) return;
-        const bounds = dialog.getBoundingClientRect();
-        if (event.clientY < bounds.top || event.clientX < bounds.left || event.clientX > bounds.right) dialog.close();
-    });
     tabs.querySelectorAll('[role=tab]').forEach((button,index,buttons) => {
         button.addEventListener('keydown', event => {
             let next;
@@ -686,5 +681,5 @@ function renderList(div, items, type='search') {
 function closePlaylist(){if(playlistLoadController)playlistLoadController.abort();playlistLoadController=null;document.getElementById('playlist-detail').style.display='none';document.getElementById('playlists-list').style.display='';}
 
 window.addEventListener('modules-changed', () => {
-    if (!FlowModules.isEnabled('music') && audio) {audio.pause();closeFullMusicPlayer();}
+    if (!FlowModules.isEnabled('music') && audio) {audio.pause();musicSheet?.closeNow();}
 });

@@ -399,3 +399,21 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
  #music-player-dialog .control-group{margin:14px 0}
 }
 @media(max-width:359px){#music-player-dialog .player-controls{gap:10px}}
+
+/* Pointer-driven sheet motion; no playback timer or duplicate audio element. */
+#music-player-dialog{--sheet-y:0px;--sheet-dim:.8;transform:translate3d(0,var(--sheet-y),0);scrollbar-width:thin}
+#music-player-dialog::backdrop{background:rgb(3 10 13 / var(--sheet-dim));transition:background-color .22s ease}
+#music-player-dialog.sheet-closing::backdrop{background:rgb(3 10 13 / 0);backdrop-filter:blur(0)}
+.music-sheet-grip{display:none}
+@media(max-width:768px){
+ #music-player-dialog{padding-top:0}
+ #music-player-dialog .music-sheet-grip{display:grid;place-items:center;width:100%;min-height:44px;padding:0;border:0;background:none;border-radius:12px;cursor:grab;touch-action:none}
+ .music-sheet-grip span{width:38px;height:4px;background:var(--text-sub);opacity:.7;border-radius:4px}
+ .music-sheet-grip:hover span,.music-sheet-grip:focus-visible span{background:var(--accent);opacity:1}
+ #music-player-dialog.sheet-dragging .music-sheet-grip{cursor:grabbing}
+ #music-player-dialog.sheet-at-top #player-art-container{touch-action:none;user-select:none;-webkit-user-drag:none}
+ #music-player-dialog #current-cover-img{-webkit-user-drag:none}
+ #music-player-dialog #player-art-container{width:min(100%,250px,30dvh)}
+ #music-player-dialog .music-sheet-head{margin-bottom:12px}
+}
+@media(prefers-reduced-motion:reduce){#music-player-dialog::backdrop{transition:none}}

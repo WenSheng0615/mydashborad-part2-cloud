@@ -95,6 +95,7 @@ with sync_playwright() as p:
  page.locator('#player-art-container').press('Enter')
  assert page.evaluate('window.coverClicks') == 2
  page.evaluate('closeFullMusicPlayer()')
+ page.locator('#music-player-dialog').wait_for(state='hidden')
  # Controlled payloads are injected only into this mocked browser session.
  probes=page.evaluate('''() => {
  window.qaInjection=0;
@@ -329,8 +330,10 @@ with sync_playwright() as p:
  assert media.locator('#music-player-dialog .now-playing').count()==1
  assert media.locator('audio').count()==1
  assert media.locator('#audio-player').evaluate("e=>e.parentElement.id==='view-music'")
+ media.wait_for_function("document.querySelector('#music-player-dialog').getAnimations().length===0")
  media.screenshot(path=str(out/'music-sheet-mobile.png'))
  media.keyboard.press('Escape')
+ media.locator('#music-player-dialog').wait_for(state='hidden')
  assert media.locator('#music-player-dialog').is_hidden()
  assert media.locator('#playlist-songs').evaluate('(e)=>e.scrollTop')==scroll
  assert media.get_by_role('button',name='展開完整播放器',exact=True).evaluate('(e)=>e===document.activeElement')
@@ -340,6 +343,7 @@ with sync_playwright() as p:
  media.get_by_role('button',name='展開完整播放器',exact=True).click()
  assert media.locator('#music-player-dialog').evaluate('(e)=>e.scrollWidth<=e.clientWidth+1')
  media.get_by_role('button',name='收合完整播放器',exact=True).click()
+ media.locator('#music-player-dialog').wait_for(state='hidden')
  assert media.locator('#music-player-dialog').is_hidden()
  media.set_viewport_size({'width':390,'height':844})
  media.get_by_role('tab',name='歌單',exact=True).focus()
@@ -554,6 +558,91 @@ with sync_playwright() as p:
  for route in files:route.fulfill(status=200,json={'files':[]})
  loading.wait_for_function("document.querySelector('#file-container .content-skeleton')===null")
  loading.close()
+ # Sheet gestures use controlled audio so a swipe cannot silently pause playback.
+ gestures=b.new_page(viewport={'width':390,'height':844},has_touch=True)
+ gestures.on('pageerror',lambda e:errors.append(str(e)))
+ gestures.route('**/*',intercept)
+ gestures.goto('http://127.0.0.1:8000/',wait_until='networkidle')
+ gestures.evaluate("""() => {
+ openApp('music');window.sheetAudio={calls:0,paused:false};
+ Object.defineProperty(audio,'src',{configurable:true,get:()=>'/sheet-test-audio'});
+ Object.defineProperty(audio,'paused',{configurable:true,get:()=>sheetAudio.paused});
+ Object.defineProperty(audio,'duration',{configurable:true,value:190});
+ Object.defineProperty(audio,'currentTime',{configurable:true,writable:true,value:74});
+ audio.play=()=>{sheetAudio.calls++;sheetAudio.paused=false;audio.dispatchEvent(new Event('playing'));return Promise.resolve()};
+ audio.pause=()=>{sheetAudio.calls++;sheetAudio.paused=true;audio.dispatchEvent(new Event('pause'))};
+ musicQueue=[{id:'a',title:'First'},{id:'b',title:'Gesture track',channel:'QA artist',thumbnail:'/static/icons/icon-192.png'}];
+ currentTrackIndex=1;currentSong=musicQueue[1];updatePlayBtn(true);syncMiniPlayer();
+ document.querySelector('#current-cover-img').src='/static/icons/icon-192.png';
+ }""")
+ sheet=gestures.locator('#music-player-dialog')
+ def open_sheet():
+  gestures.get_by_role('button',name='展開完整播放器',exact=True).click()
+  gestures.wait_for_function("document.querySelector('#music-player-dialog').getAnimations().length===0")
+ def drag_sheet(selector,distance,horizontal=0):
+  box=gestures.locator(selector).bounding_box()
+  x=box['x']+box['width']/2;y=box['y']+min(20,box['height']/2)
+  gestures.mouse.move(x,y);gestures.mouse.down()
+  gestures.mouse.move(x+horizontal,y+distance,steps=12);gestures.mouse.up()
+ open_sheet()
+ assert sheet.evaluate("e=>Number(e.style.getPropertyValue('--sheet-dim'))===.8")
+ drag_sheet('#music-sheet-grip',32)
+ gestures.wait_for_function("document.querySelector('#music-player-dialog').getAnimations().length===0")
+ assert sheet.is_visible()
+ assert abs(sheet.evaluate('e=>new DOMMatrixReadOnly(getComputedStyle(e).transform).m42'))<1
+ # The real cover's existing click-to-pause remains available after a short drag.
+ drag_sheet('#player-art-container',32)
+ gestures.wait_for_function("document.querySelector('#music-player-dialog').getAnimations().length===0")
+ assert gestures.evaluate('sheetAudio.calls')==0
+ gestures.locator('#player-art-container').click()
+ assert gestures.evaluate('sheetAudio.paused && sheetAudio.calls===1')
+ gestures.locator('#player-art-container').press('Enter')
+ assert gestures.evaluate('!sheetAudio.paused && sheetAudio.calls===2')
+ drag_sheet('#player-art-container',190)
+ sheet.wait_for(state='hidden')
+ assert gestures.evaluate('sheetAudio.calls')==2
+ assert gestures.locator('audio').count()==1
+ assert gestures.locator('#audio-player').evaluate("e=>e.parentElement.id==='view-music'")
+ open_sheet();drag_sheet('#music-sheet-grip',2,horizontal=70)
+ gestures.wait_for_function("document.querySelector('#music-player-dialog').getAnimations().length===0")
+ assert sheet.is_visible()
+ # Horizontal and downward slider motion belong to their controls, not the sheet.
+ for selector in ['#progress-bar','#music-sheet-body input[oninput="setVolume(this.value)"]']:
+  box=gestures.locator(selector).bounding_box()
+  x=box['x']+20;y=box['y']+box['height']/2
+  gestures.mouse.move(x,y);gestures.mouse.down();gestures.mouse.move(x+80,y+45,steps=8);gestures.mouse.up()
+  assert sheet.is_visible() and not sheet.evaluate("e=>e.classList.contains('sheet-dragging')")
+ assert gestures.evaluate('sheetAudio.calls')==2
+ # Genuine browser touch events test touch-action, capture and cancellation.
+ cdp=gestures.context.new_cdp_session(gestures)
+ def touch_sheet(cancel=False):
+  box=gestures.locator('#music-sheet-grip').bounding_box();x=box['x']+100;y=box['y']+20
+  cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':x,'y':y}]})
+  for delta in [15,40,80,120,160,190]:
+   cdp.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':x,'y':y+delta}]})
+  cdp.send('Input.dispatchTouchEvent',{'type':'touchCancel' if cancel else 'touchEnd','touchPoints':[]})
+ touch_sheet(cancel=True)
+ gestures.wait_for_function("document.querySelector('#music-player-dialog').getAnimations().length===0")
+ assert sheet.is_visible()
+ touch_sheet();sheet.wait_for(state='hidden')
+ assert gestures.evaluate('sheetAudio.calls')==2
+ open_sheet()
+ gestures.screenshot(path=str(out/'music-swipe-sheet-mobile.png'))
+ gestures.mouse.click(2,2);sheet.wait_for(state='hidden')
+ # Resize during entrance must cancel motion, not stop or duplicate the audio.
+ gestures.get_by_role('button',name='展開完整播放器',exact=True).click()
+ gestures.set_viewport_size({'width':1440,'height':900})
+ sheet.wait_for(state='hidden')
+ gestures.locator('.music-layout > .now-playing').wait_for(state='attached')
+ assert gestures.evaluate('sheetAudio.calls')==2
+ gestures.set_viewport_size({'width':390,'height':844})
+ gestures.locator('#music-sheet-body .now-playing').wait_for(state='attached')
+ gestures.emulate_media(reduced_motion='reduce')
+ open_sheet();assert sheet.evaluate('e=>e.getAnimations().length')==0
+ gestures.get_by_role('button',name='收合完整播放器',exact=True).click()
+ assert sheet.is_hidden()
+ gestures.close()
+ probes['musicSheet']='entry/dismiss/return, cover-click exclusion, real touch/cancel, sliders, focus/scroll, resize, reduced motion and single audio PASS'
  probes['loadingPresentation']='static placeholders, retained refresh, retry, deduplication, stale search isolation and mobile Drive PASS'
  probes['mediaSession']='metadata, prepared transition, buffering state, scrub, warm-up failure, controls and unsupported API PASS'
  report={'scope':'Mocked API, external CDN blocked; no real account mutations','panels':results,'missingHandlers':inventory,'probes':probes,'consoleErrors':errors}
