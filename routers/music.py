@@ -2,6 +2,7 @@ from fastapi import APIRouter, Form, Request, Query
 from fastapi.responses import JSONResponse
 import yt_dlp
 import time
+import math
 from urllib.parse import parse_qs, urlsplit
 
 # ✅ 改用 SQLite
@@ -101,13 +102,18 @@ def get_audio_stream(request: Request, video_id: str):
                 expires_at = int(parse_qs(urlsplit(info['url']).query).get('expire', ['0'])[0])
             except (ValueError, TypeError):
                 expires_at = 0
+            duration = info.get('duration')
+            if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration) or duration <= 0:
+                duration = None
             return JSONResponse({
                 "url": info['url'], 
                 "title": info['title'], 
                 "channel": info.get('channel') or info.get('uploader') or '',
                 "thumbnail": info.get('thumbnail'),
                 "expires_at": expires_at or int(time.time()) + 300,
-                "format": info.get('ext', ''), "protocol": info.get('protocol', '')
+                "format": info.get('ext', ''), "protocol": info.get('protocol', ''),
+                "duration": duration,
+                "is_live": bool(info.get('is_live') or info.get('live_status') in ('is_live', 'post_live'))
             }, headers={'Cache-Control': 'no-store'})
     except Exception as e: return JSONResponse({"error": "外部服務暫時無法完成操作，請稍後重試"}, 500)
 

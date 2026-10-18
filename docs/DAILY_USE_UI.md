@@ -82,3 +82,14 @@ Regression tests use recorded Media Session and controlled media events/provider
 ## Playlist loading presentation — 2026-10-18
 
 Provider page counters are no longer exposed in the Music UI. A stable five-row skeleton with a single loading announcement represents pending playlist data; aria-busy marks the list and reduced-motion disables the pulse. Completion shows only the final song count; failure uses a dedicated empty-state card with retry and preservation guidance, without partial page numbers. Full pagination, ordering, cancellation, active queue preservation and retry behavior are unchanged. Browser regression and mobile/desktop loading/error/ready screenshot review cover this increment.
+
+
+## Inflated playback duration guard — 2026-10-18
+
+Owner reports that all songs have roughly doubled duration with a long silent tail. This run did not reproduce the physical iPhone issue; a public diagnostic extraction returned DownloadError. Container/Safari interpretation is a hypothesis, not a confirmed root cause. No duration-halving or amplitude/silence detection is used.
+
+The stream API now returns finite positive provider duration and explicit live/post-live status. If native duration is at least 1.5x source duration AND at least 30 seconds longer, non-live tracks use the provider duration consistently for display, seek preview/commit and Media Session. Unknown native duration may use known source duration for presentation. Normal differences, missing source metadata and live tracks retain browser timing.
+
+Only for the gross finite mismatch, active unpaused/non-seeking/non-buffering playback advances/stops/repeats after provider duration plus one second. Completion is guarded against duplicate/stale ended events; completed tracks can restart, and a prepared following source still reaches play without an intervening fetch/pause. This assumes provider metadata describes the full recording; incorrect provider metadata or a scaled native currentTime may still require source/container-level repair. It does not fix media bytes or guarantee iOS background execution.
+
+Controlled browser regressions cover a 200-second source/400-second native duration, no early completion at 199 seconds, completion/replay/prepared-next behavior, and live/unknown/minor-drift/pause/seek/wait exclusions. Provider metadata validation covers zero/negative/boolean/nonfinite values and live flags. Owner must reopen the updated app and validate actual duration and full audible playback on iPhone. No schema change or new media cache infrastructure.

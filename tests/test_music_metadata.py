@@ -81,3 +81,22 @@ def test_stream_prefers_direct_m4a_and_preserves_signed_url_expiry(alice, monkey
         assert list(selector(context))[0]['format_id'] == 'direct-aac'
         context['formats'] = [formats[-1]]
         assert list(selector(context))[0]['format_id'] == 'opus'  # Fallback remains available.
+
+
+@pytest.mark.parametrize('duration,live_status,expected,live', [
+    (200.5, 'not_live', 200.5, False), (None, 'not_live', None, False),
+    (0, 'not_live', None, False), (-10, 'not_live', None, False),
+    (True, 'not_live', None, False), (float('nan'), 'not_live', None, False),
+    (float('inf'), 'not_live', None, False),
+    (200, 'is_live', 200, True), (200, 'post_live', 200, True),
+])
+def test_stream_duration_is_validated_and_live_is_explicit(alice, monkeypatch, duration, live_status, expected, live):
+    extractor = MagicMock()
+    extractor.__enter__.return_value = extractor
+    extractor.extract_info.return_value = dict(url='https://example.test/audio', title='Track',
+                                               duration=duration, live_status=live_status)
+    monkeypatch.setattr(music.yt_dlp, 'YoutubeDL', lambda _: extractor)
+    response = alice.get('/api/music/stream?video_id=abcdefghijk')
+    assert response.status_code == 200
+    assert response.json()['duration'] == expected
+    assert response.json()['is_live'] is live

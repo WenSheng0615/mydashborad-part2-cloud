@@ -204,6 +204,46 @@ with sync_playwright() as p:
  }""")
  assert media.evaluate("navigator.mediaSession.metadata.title==='Current stays playing' && navigator.mediaSession.playbackState==='playing'")
  assert media.evaluate("!preparingStreams.has('fffffffffff') && !pendingTracks.fffffffffff")
+ # Grossly inflated native duration must not leave a known VOD playing a silent tail.
+ media.evaluate("""async () => {
+ const song={id:'eeeeeeeeeee',title:'Timing fixture'};musicQueue=[song];
+ preparedStreams.set(song.id,{until:Date.now()+60000,data:{url:'/timing-fixture',title:song.title,duration:200,is_live:false}});
+ await playTrack(0);
+ Object.defineProperty(audio,'duration',{configurable:true,value:400});
+ Object.defineProperty(audio,'paused',{configurable:true,get:()=>false});
+ audio.currentTime=199;updateProgress();
+ }""")
+ assert media.locator('#duration').inner_text()=='3:20'
+ assert media.evaluate('mediaQA.positions.at(-1).duration')==200
+ assert media.evaluate('isPlaying && !playbackFinished')
+ media.evaluate('audio.currentTime=201;updateProgress()')
+ assert media.evaluate('playbackFinished && !isPlaying')
+ assert media.locator('#current-time').inner_text()=='3:20'
+ media.evaluate('mediaQA.handlers.play()')
+ assert media.evaluate('audio.currentTime===0 && !playbackFinished')
+ # A prepared following song also transitions at the validated end without another fetch.
+ advanced=media.evaluate("""() => {
+ musicQueue.push({id:'ggggggggggg',title:'Following song'});
+ preparedStreams.set('ggggggggggg',{until:Date.now()+60000,data:{url:'/following-song',duration:180,title:'Following song'}});
+ audio.currentTime=201;const before=playCalls;updateProgress();
+ return {src:audio.src,plays:playCalls-before};
+ }""")
+ assert advanced=={'src':'/following-song','plays':1},advanced
+ # Live/unknown/small mismatches, pause, seek and buffering must never trigger the guard.
+ media.evaluate('sourceDuration=200;sourceIsLive=true;audio.currentTime=230;mediaWaiting=false;playbackFinished=false')
+ assert media.evaluate('playbackDuration()===400 && !finishInflatedTail()')
+ media.evaluate('sourceIsLive=false;sourceDuration=null')
+ assert media.evaluate('playbackDuration()===400 && !finishInflatedTail()')
+ media.evaluate('sourceDuration=390')
+ assert media.evaluate('playbackDuration()===400 && !finishInflatedTail()')
+ media.evaluate('sourceDuration=200;mediaWaiting=true')
+ assert media.evaluate('!finishInflatedTail()')
+ media.evaluate("mediaWaiting=false;Object.defineProperty(audio,'seeking',{configurable:true,get:()=>true})")
+ assert media.evaluate('!finishInflatedTail()')
+ media.evaluate("Object.defineProperty(audio,'seeking',{configurable:true,get:()=>false});Object.defineProperty(audio,'paused',{configurable:true,get:()=>true})")
+ assert media.evaluate('!finishInflatedTail()')
+ media.evaluate('sourceDuration=null;sourceIsLive=false;audio.currentTime=0')
+ probes['durationGuard']='2x native duration, provider timing, completion/replay/next and live/unknown/wait/seek/pause exclusions PASS'
  media.evaluate("syncMediaMetadata({title:'No cover supplied'})")
  assert media.evaluate('navigator.mediaSession.metadata.artwork[0].src').endswith('/static/icons/icon-192.png')
  media.evaluate("""() => {

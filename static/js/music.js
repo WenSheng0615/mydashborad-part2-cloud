@@ -68,6 +68,30 @@ function setMediaWaiting(waiting) {
     mediaStatus(waiting ? '正在載入音訊，尚未開始播放…' : '');
 }
 
+let sourceDuration = null, sourceIsLive = false, playbackFinished = false;
+function inflatedMediaDuration() {
+    return !sourceIsLive && Number.isFinite(sourceDuration) && sourceDuration > 0 &&
+        Number.isFinite(audio.duration) && audio.duration >= sourceDuration * 1.5 &&
+        audio.duration - sourceDuration >= 30;
+}
+function playbackDuration() {
+    if (inflatedMediaDuration()) return sourceDuration;
+    if (!sourceIsLive && Number.isFinite(sourceDuration) && sourceDuration > 0 &&
+        (!Number.isFinite(audio.duration) || audio.duration <= 0)) return sourceDuration;
+    return audio.duration;
+}
+function finishInflatedTail() {
+    // Compare provider metadata, never amplitude/silence. Leave normal/live/unknown tracks alone.
+    if (!playbackFinished && inflatedMediaDuration() && !audio.paused && !audio.seeking &&
+        !mediaWaiting && audio.currentTime >= sourceDuration + 1) {
+        document.getElementById('progress-bar').value = 100;
+        document.getElementById('current-time').innerText = fmt(sourceDuration);
+        document.getElementById('duration').innerText = fmt(sourceDuration);
+        onAudioEnded();return true;
+    }
+    return false;
+}
+
 function syncMediaMetadata(song) {
     if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
     try {
@@ -82,19 +106,21 @@ function syncMediaMetadata(song) {
 function syncMediaPosition() {
     if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
     try {
-        if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+        const duration = playbackDuration();
+        if (!Number.isFinite(duration) || duration <= 0) {
             navigator.mediaSession.setPositionState(); return;
         }
         if (mediaWaiting) { navigator.mediaSession.setPositionState(); return; }
-        navigator.mediaSession.setPositionState({duration: audio.duration,
+        navigator.mediaSession.setPositionState({duration,
             playbackRate: audio.playbackRate || 1,
-            position: Math.max(0, Math.min(audio.currentTime, audio.duration))});
+            position: Math.max(0, Math.min(audio.currentTime, duration))});
     } catch (_) { /* Not every browser implements position updates. */ }
 }
 
 function seekMedia(position) {
-    if (!Number.isFinite(position) || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
-    audio.currentTime = Math.max(0, Math.min(position, audio.duration));
+    const duration = playbackDuration();
+    if (!Number.isFinite(position) || !Number.isFinite(duration) || duration <= 0) return;
+    audio.currentTime = Math.max(0, Math.min(position, duration));
     mediaStatus('正在跳轉，若目標尚未緩衝需等待網路載入…');
     syncMediaPosition();
 }
@@ -102,7 +128,7 @@ function seekMedia(position) {
 function initMediaSession() {
     if (!('mediaSession' in navigator)) return;
     const handlers = {
-        play: () => { if (audio.src) audio.play().catch(() => showAlert('播放失敗', '請回播放器重新選擇歌曲。')); },
+        play: () => { if (audio.src) { if (playbackFinished) { audio.currentTime = 0; playbackFinished = false; } audio.play().catch(() => showAlert('播放失敗', '請回播放器重新選擇歌曲。')); } },
         pause: () => audio.pause(),
         previoustrack: () => playPrev(), nexttrack: () => playNext(),
         seekbackward: details => seekMedia(audio.currentTime - (details.seekOffset || 10)),
@@ -131,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const event of ['pointercancel', 'blur']) slider.addEventListener(event, () => { isSeekingPreview = false; updateProgress(); });
         audio.addEventListener('ended', onAudioEnded);
         audio.addEventListener('timeupdate', updateProgress);
-        audio.addEventListener('play', () => { mediaWaiting = true; updatePlayBtn(true); });
+        audio.addEventListener('play', () => { playbackFinished = false; mediaWaiting = true; updatePlayBtn(true); });
         audio.addEventListener('playing', () => { setMediaWaiting(false); updatePlayBtn(true); });
         audio.addEventListener('waiting', () => setMediaWaiting(true));
         audio.addEventListener('seeking', () => setMediaWaiting(true));
@@ -260,6 +286,9 @@ async function playTrack(idx) {
             song.title = data.title || song.title || '未知曲目';
             song.channel = data.channel || song.channel || 'YouTube';
             song.thumbnail = musicCover(data.thumbnail) || musicCover(song.thumbnail) || musicFallbackCover;
+            sourceDuration = typeof data.duration === 'number' && Number.isFinite(data.duration) && data.duration > 0 ? data.duration : null;
+            sourceIsLive = data.is_live === true;
+            playbackFinished = false;
             setMediaWaiting(true);
             audio.src = data.url;
             document.getElementById('current-track-title').innerText = song.title;
@@ -312,16 +341,22 @@ function updatePlayBtn(playing) {
 
 function togglePlayState() {
     if (!audio.src) return;
-    if (audio.paused) audio.play().catch(() => showAlert('播放失敗', '請重新選擇歌曲後再試。')); else audio.pause();
+    if (audio.paused) {
+        if (playbackFinished) { audio.currentTime = 0; playbackFinished = false; }
+        audio.play().catch(() => showAlert('播放失敗', '請重新選擇歌曲後再試。'));
+    } else audio.pause();
 }
 
-function onAudioEnded() {
+function onAudioEnded(event) {
+    if (playbackFinished || (event?.type === 'ended' && !audio.ended)) return;
+    playbackFinished = true;
     updatePlayBtn(false);
     if (loopMode === 2) {
         audio.currentTime = 0;
-        audio.play();
+        playbackFinished = false;
+        audio.play().catch(() => mediaStatus('請按播放以繼續。'));
     } else {
-        playNext(true);
+        if (playNext(true) === false) audio.pause();
     }
 }
 
@@ -333,11 +368,12 @@ function controlPlayer(act) {
 }
 
 function playNext(auto = false) {
-    if (musicQueue.length === 0) return;
-    if (auto && !isShuffle && loopMode === 0 && currentTrackIndex >= musicQueue.length - 1) return;
+    if (musicQueue.length === 0) return false;
+    if (auto && !isShuffle && loopMode === 0 && currentTrackIndex >= musicQueue.length - 1) return false;
 
     const index = nextIndex();
-    if (index !== null) playTrack(index);
+    if (index !== null) return playTrack(index);
+    return false;
 }
 
 function playPrev() {
@@ -345,25 +381,29 @@ function playPrev() {
 }
 
 function updateProgress() {
+    if (finishInflatedTail()) return;
+    const duration = playbackDuration();
     syncMediaPosition();
-    if (currentSong && Number.isFinite(audio.duration) && audio.duration - audio.currentTime < 45) warmNextTrack();
+    if (currentSong && Number.isFinite(duration) && duration - audio.currentTime < 45) warmNextTrack();
     if (isSeekingPreview) return;
-    if (audio && audio.duration) {
-        document.getElementById('progress-bar').value = (audio.currentTime / audio.duration) * 100;
-        document.getElementById('current-time').innerText = fmt(audio.currentTime);
-        document.getElementById('duration').innerText = fmt(audio.duration);
+    if (Number.isFinite(duration) && duration > 0) {
+        document.getElementById('progress-bar').value = (Math.min(audio.currentTime, duration) / duration) * 100;
+        document.getElementById('current-time').innerText = fmt(Math.min(audio.currentTime, duration));
+        document.getElementById('duration').innerText = fmt(duration);
     }
 }
 
 function previewSeek(val) {
-    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    const duration = playbackDuration();
+    if (!Number.isFinite(duration) || duration <= 0) return;
     isSeekingPreview = true;
-    document.getElementById('current-time').innerText = fmt((Number(val) / 100) * audio.duration);
+    document.getElementById('current-time').innerText = fmt((Number(val) / 100) * duration);
 }
 
 function seekTo(val) {
     isSeekingPreview = false;
-    if (audio && audio.duration) seekMedia((Number(val) / 100) * audio.duration);
+    const duration = playbackDuration();
+    if (Number.isFinite(duration) && duration > 0) seekMedia((Number(val) / 100) * duration);
 }
 
 function fmt(s) {
