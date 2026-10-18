@@ -98,3 +98,12 @@ Controlled browser regressions cover a 200-second source/400-second native durat
 ## Playback status reconciliation — 2026-10-18
 
 Pause and paused seek completion now clear stale loading text without clearing genuine media errors. Waiting text describes buffering rather than claiming playback has never begun. A timeupdate observer can recover a missed/late playing notification only when the same source advances plausibly, current media data exists, and it is not paused, ended, seeking or errored. A large seek jump cannot clear buffering by itself; normal forward playback restores the button and Media Session state. No wall-clock timer fabricates progress. Browser regression covers resumed progress without playing, seek-jump exclusion and pause cleanup in addition to existing queue/timing scenarios. Physical Safari event ordering remains owner verification.
+
+
+## Mobile mini-player and quieter playback UI — 2026-10-18
+
+General buffering/seek notices are no longer written to the player status; genuine playback failures retain their messages. Internal buffering reconciliation and Media Session correctness are preserved. Empty status text occupies no reserved row.
+
+On mobile, a compact player sits below the existing Music header when full track information has scrolled above the music viewport. It shows the existing cover, title, author and pause/resume/next controls. Tapping the track returns to the full player with reduced-motion-aware scrolling; selecting a song does not force a scroll jump. IntersectionObserver watches one information block, with no scroll timer or second audio element. Desktop keeps the existing full layout. The mini-player shares the same queue, metadata and media element.
+
+Mocked browser regression verifies the mini-player after selecting item 237, metadata/control state, one audio element, return-to-player scrolling/hiding and unchanged desktop behavior. Mobile screenshot review confirms the top bar remains above the list and bottom dock. No schema/backend changes. Physical iPhone scrolling and safe areas remain owner acceptance.

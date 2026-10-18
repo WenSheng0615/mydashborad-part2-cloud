@@ -171,7 +171,7 @@ with sync_playwright() as p:
  media.evaluate("audio.dispatchEvent(new Event('waiting'))")
  assert media.evaluate('navigator.mediaSession.playbackState')=='paused'
  assert media.evaluate('mediaQA.positions.at(-1)') is None
- assert '正在緩衝音訊' in media.locator('#music-playback-status').inner_text()
+ assert media.locator('#music-playback-status').inner_text()==''
  media.evaluate("audio.dispatchEvent(new Event('playing'))")
  assert media.evaluate('navigator.mediaSession.playbackState')=='playing'
  assert media.locator('#music-playback-status').inner_text()==''
@@ -287,6 +287,32 @@ with sync_playwright() as p:
  media.locator('#playlist-songs .track-item').last.click()
  assert media.evaluate('currentTrackIndex')==236
  assert media.evaluate('currentSong.title')=='Track 237'
+ # Mobile scrolling keeps the selected song reachable in a header mini-player.
+ media.evaluate("""async () => {
+ const pending=preparingStreams.get('00000000236');
+ pendingTracks['00000000236'](new Response(JSON.stringify({url:'/track-237',title:'Track 237',channel:'Playlist artist',thumbnail:'/static/icons/icon-192.png'}),{status:200}));
+ await pending;
+ }""")
+ media.wait_for_function("document.querySelector('#music-mini-title').textContent==='Track 237' && !document.querySelector('#music-mini-player').hidden")
+ assert media.locator('#music-mini-player').is_visible()
+ assert media.locator('#music-mini-artist').inner_text()=='Playlist artist'
+ media.evaluate("""() => {
+ window.miniPaused=false;Object.defineProperty(audio,'paused',{configurable:true,get:()=>miniPaused});
+ const play=audio.play,pause=audio.pause;audio.play=()=>{miniPaused=false;return play()};audio.pause=()=>{miniPaused=true;pause()};
+ }""")
+ media.locator('#music-mini-toggle').click()
+ assert media.locator('#music-mini-toggle').get_attribute('aria-label')=='播放'
+ media.locator('#music-mini-toggle').click()
+ assert media.locator('#music-mini-toggle').get_attribute('aria-label')=='暫停'
+ assert media.locator('audio').count()==1
+ media.screenshot(path=str(out/'music-mini-mobile.png'))
+ media.get_by_role('button',name='回到完整播放器',exact=True).click()
+ media.wait_for_function("document.querySelector('#view-music .music-layout').scrollTop<2")
+ assert media.locator('#music-mini-player').is_hidden()
+ # Desktop retains the existing complete player.
+ media.set_viewport_size({'width':1440,'height':900})
+ assert media.locator('#music-mini-player').is_hidden()
+ media.set_viewport_size({'width':390,'height':844})
  # Failure on page two must not silently replace the queue with the first 50 songs.
  def playlist_failure(route):
   if 'page_token' in parse_qs(urlsplit(route.request.url).query):

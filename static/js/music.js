@@ -55,6 +55,37 @@ function warmNextTrack() {
     prepareStream(song).then(() => { if (warmFailure?.id === song.id) warmFailure = null; })
         .catch(() => { warmFailure = {id:song.id,retryAfter:Date.now()+30000}; }); // Avoid retrying on every timeupdate.
 }
+let musicDetailsPassed = false;
+function syncMiniPlayer() {
+    const mini = document.getElementById('music-mini-player');
+    if (!mini) return;
+    mini.hidden = !currentSong || !musicDetailsPassed;
+    if (currentSong) {
+        const cover = musicCover(currentSong.thumbnail) || musicFallbackCover;
+        const image = document.getElementById('music-mini-cover');
+        if (image.src !== cover) image.src = cover;
+        document.getElementById('music-mini-title').textContent = currentSong.title || '未知曲目';
+        document.getElementById('music-mini-artist').textContent = currentSong.channel || 'YouTube';
+        mini.setAttribute('aria-label', `目前播放：${currentSong.title || '未知曲目'}，${currentSong.channel || 'YouTube'}`);
+    }
+    const toggle = document.getElementById('music-mini-toggle');
+    toggle.setAttribute('aria-label', isPlaying ? '暫停' : '播放');
+    toggle.querySelector('path').setAttribute('d', isPlaying ? 'M6 5h4v14H6z M14 5h4v14h-4z' : 'M8 5v14l11-7z');
+}
+function showFullMusicPlayer() {
+    const layout = document.querySelector('#view-music .music-layout');
+    layout.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+}
+function initMiniPlayer() {
+    if (!('IntersectionObserver' in window)) return;
+    const layout = document.querySelector('#view-music .music-layout');
+    const observer = new IntersectionObserver(([entry]) => {
+        musicDetailsPassed = !!entry.rootBounds && entry.boundingClientRect.bottom <= entry.rootBounds.top;
+        syncMiniPlayer();
+    }, {root:layout,threshold:[0,1]});
+    observer.observe(document.querySelector('#view-music .track-info-area'));
+}
+
 function mediaStatus(text) {
     const status = document.getElementById('music-playback-status');
     if (status) status.textContent = text;
@@ -83,7 +114,7 @@ function setMediaWaiting(waiting) {
         try { navigator.mediaSession.playbackState = !waiting && !audio.paused && !audio.ended ? 'playing' : 'paused'; } catch (_) { }
     }
     syncMediaPosition();
-    mediaStatus(waiting ? '正在緩衝音訊…' : '');
+    if (!waiting) mediaStatus('');
 }
 
 let sourceDuration = null, sourceIsLive = false, playbackFinished = false;
@@ -139,7 +170,6 @@ function seekMedia(position) {
     const duration = playbackDuration();
     if (!Number.isFinite(position) || !Number.isFinite(duration) || duration <= 0) return;
     audio.currentTime = Math.max(0, Math.min(position, duration));
-    mediaStatus('正在跳轉，若目標尚未緩衝需等待網路載入…');
     syncMediaPosition();
 }
 
@@ -171,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化事件監聽
     if (audio) {
         initMediaSession();
+        initMiniPlayer();
         const slider = document.getElementById('progress-bar');
         for (const event of ['pointercancel', 'blur']) slider.addEventListener(event, () => { isSeekingPreview = false; updateProgress(); });
         audio.addEventListener('ended', onAudioEnded);
@@ -314,6 +345,7 @@ async function playTrack(idx) {
             document.getElementById('current-track-channel').innerText = song.channel;
             document.getElementById('current-cover-img').src = song.thumbnail;
             syncMediaMetadata(song);
+            syncMiniPlayer();
             syncMediaPosition();
             await audio.play();
             if (requestId !== playRequest) return;
@@ -347,6 +379,7 @@ function renderCurrentListState() {
 
 function updatePlayBtn(playing) {
     isPlaying = playing;
+    syncMiniPlayer();
     if ('mediaSession' in navigator) {
         try { navigator.mediaSession.playbackState = playing && !mediaWaiting ? 'playing' : 'paused'; } catch (_) { }
     }

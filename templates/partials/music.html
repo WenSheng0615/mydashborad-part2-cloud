@@ -4,6 +4,19 @@
         <div class="user-placeholder"></div>
     </div>
 
+    <div id="music-mini-player" class="music-mini-player" hidden role="group" aria-label="目前播放">
+        <button type="button" class="music-mini-track" onclick="showFullMusicPlayer()" aria-label="回到完整播放器">
+            <img id="music-mini-cover" alt="" width="42" height="42">
+            <span class="music-mini-info"><span id="music-mini-title"></span><span id="music-mini-artist"></span></span>
+        </button>
+        <button type="button" class="music-mini-control" id="music-mini-toggle" onclick="togglePlayState()" aria-label="播放">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button type="button" class="music-mini-control" onclick="controlPlayer('next')" aria-label="下一首">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14l10-7z M17 5h3v14h-3z"/></svg>
+        </button>
+    </div>
+
     <div class="music-layout">
         <div class="now-playing">
             <div id="player-art-container">
@@ -21,7 +34,7 @@
             <div class="track-info-area">
                 <h2 id="current-track-title">請選擇歌曲</h2>
                 <p id="current-track-channel">YouTube Streaming</p>
-                <p id="music-playback-status" role="status" style="font-size:.8rem;color:var(--text-sub);min-height:1.5em"></p>
+                <p id="music-playback-status" class="music-error-status" role="status"></p>
             </div>
 
             <div class="control-group">
