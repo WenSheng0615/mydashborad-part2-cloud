@@ -460,3 +460,11 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
  #view-music #playlists-list .track-item::after{content:'›';color:var(--text-sub);font-size:24px;flex:none}
  #view-music .track-channel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+/* Playlist context occupies one toolbar row on phones. */
+@media(max-width:768px){
+ #view-music.music-detail-visible #music-library-toolbar{display:none}
+ #view-music #playlist-inline-count{flex:none;white-space:nowrap;font-size:.8rem;color:var(--text-sub);align-items:center}
+ #view-music #playlist-songs .playlist-summary:not(.playlist-empty){display:none}
+ #view-music .music-playlist-toolbar{gap:8px!important}
+}

@@ -688,6 +688,14 @@ with sync_playwright() as p:
     layout.evaluate('(name)=>switchTab(name)',tab)
    if tab=='search':layout.evaluate('(items)=>renderList(document.querySelector("#yt-results"),items)',fixture)
    layout.wait_for_function('(id)=>document.querySelectorAll("#"+id+" .track-item").length===24',arg=list_id)
+   if tab=='detail':
+    assert layout.locator('#music-library-toolbar').is_hidden()
+    assert layout.locator('#playlist-inline-count').inner_text()=='· 24 首'
+    assert layout.locator('#playlist-songs .playlist-summary').is_hidden()
+    title=layout.locator('#playlist-title').bounding_box();count=layout.locator('#playlist-inline-count').bounding_box()
+    assert abs(title['y']+title['height']/2-count['y']-count['height']/2)<3
+    assert title['x']+title['width']<=count['x']+1
+   if tab=='playlists':assert layout.locator('#music-library-toolbar').is_visible()
    viewport=layout.locator('#'+list_id)
    viewport.evaluate('(e)=>e.scrollTop=e.scrollHeight')
    bounds=viewport.bounding_box();last=viewport.locator('.track-item').last.bounding_box()
@@ -717,6 +725,7 @@ with sync_playwright() as p:
  assert layout.locator('#music-mini-title').inner_text()=='Now playing'
  layout.locator('#music-history-button').click()
  assert layout.locator('#tab-history').is_visible()
+ assert layout.locator('#music-library-toolbar').is_visible()
  layout.locator('#music-library-back').click()
  assert layout.locator('#tab-search').is_visible()
  layout.locator('#music-search-clear').click()

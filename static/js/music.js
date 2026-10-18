@@ -77,6 +77,7 @@ let musicSheet = null;
 let musicSection = 'search', musicReturnSection = 'playlists', musicOpened = false;
 function isMobileMusic() { return matchMedia('(max-width:768px)').matches; }
 function updateMusicLibrary() {
+    document.getElementById('view-music').classList.toggle('music-detail-visible', musicSection === 'playlists' && document.getElementById('playlist-detail').style.display === 'flex');
     document.getElementById('music-library-title').textContent = {search:'搜尋結果',playlists:'我的歌單',history:'最近播放'}[musicSection];
     document.getElementById('music-library-back').hidden = musicSection === 'playlists';
     document.getElementById('music-search-clear').hidden = !document.getElementById('yt-search-input').value;
@@ -627,6 +628,8 @@ async function loadPlaylistItems(pid, title) {
     document.getElementById('playlists-list').style.display = 'none';
     document.getElementById('playlist-detail').style.display = 'flex';
     document.getElementById('playlist-title').innerText = title;
+    document.getElementById('playlist-inline-count').textContent = '';
+    updateMusicLibrary();
     const div = document.getElementById('playlist-songs');
     div.setAttribute('aria-busy', 'true');
     div.replaceChildren(playlistLoadingState());
@@ -652,7 +655,8 @@ async function loadPlaylistItems(pid, title) {
         if (controller !== playlistLoadController) return;
         // Display only complete playlists; selecting a row activates its queue.
         renderList(div, items, 'playlist');
-        div.prepend(FlowUI.node('p', items.length ? `${items.length} 首歌曲` : '這份歌單還沒有歌曲', 'playlist-summary'));
+        document.getElementById('playlist-inline-count').textContent = `· ${items.length} 首`;
+        div.prepend(FlowUI.node('p', items.length ? `${items.length} 首歌曲` : '這份歌單還沒有歌曲', items.length ? 'playlist-summary' : 'playlist-summary playlist-empty'));
     } catch (_) {
         if (controller !== playlistLoadController) return;
         const state = FlowUI.node('div', null, 'playlist-error');
@@ -713,7 +717,7 @@ function renderList(div, items, type='search') {
         row.onclick=()=>{musicQueue=items;playTrack(index);};div.append(row);
     });
 }
-function closePlaylist(){if(playlistLoadController)playlistLoadController.abort();playlistLoadController=null;document.getElementById('playlist-detail').style.display='none';document.getElementById('playlists-list').style.display='';}
+function closePlaylist(){if(playlistLoadController)playlistLoadController.abort();playlistLoadController=null;document.getElementById('playlist-detail').style.display='none';document.getElementById('playlists-list').style.display='';updateMusicLibrary();}
 
 window.addEventListener('modules-changed', () => {
     if (!FlowModules.isEnabled('music') && audio) {audio.pause();musicSheet?.closeNow();}
