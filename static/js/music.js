@@ -74,6 +74,30 @@ function syncMiniPlayer() {
     toggle.querySelector('path').setAttribute('d', isPlaying ? 'M6 5h4v14H6z M14 5h4v14h-4z' : 'M8 5v14l11-7z');
 }
 let musicSheet = null;
+let musicSection = 'search', musicReturnSection = 'playlists', musicOpened = false;
+function isMobileMusic() { return matchMedia('(max-width:768px)').matches; }
+function updateMusicLibrary() {
+    document.getElementById('music-library-title').textContent = {search:'搜尋結果',playlists:'我的歌單',history:'最近播放'}[musicSection];
+    document.getElementById('music-library-back').hidden = musicSection === 'playlists';
+    document.getElementById('music-search-clear').hidden = !document.getElementById('yt-search-input').value;
+    document.getElementById('music-history-button').setAttribute('aria-pressed', String(musicSection === 'history'));
+}
+function openMusicHistory() {
+    if (musicSection === 'history') { backToMusicLibrary(); return; }
+    musicReturnSection = musicSection;
+    switchTab('history');
+}
+function backToMusicLibrary() {
+    const target = musicReturnSection === 'history' ? 'playlists' : musicReturnSection;
+    switchTab(target, false);
+    musicReturnSection = 'playlists';
+}
+function clearMusicSearch() {
+    document.getElementById('yt-search-input').value = '';
+    onMusicSearchInput();
+    switchTab('playlists', false);
+    document.getElementById('yt-search-input').focus();
+}
 function showFullMusicPlayer() {
     musicSheet?.open();syncMiniPlayer();
 }
@@ -93,12 +117,13 @@ function initMiniPlayer() {
     // Only controls move: the single audio node stays connected at the view root.
     const updateLayout = () => {
         if (mobile.matches) {
-            view.insertBefore(tabs, mini);
+            view.insertBefore(document.getElementById('music-search-area'), mini);
             document.getElementById('music-sheet-body').append(player);
         } else {
-            musicSheet.closeNow();layout.prepend(player);side.prepend(tabs);
+            musicSheet.closeNow();layout.prepend(player);
+            document.getElementById('music-search-slot').append(document.getElementById('music-search-area'));
         }
-        syncMiniPlayer();
+        syncMiniPlayer();updateMusicLibrary();
     };
     dialog.addEventListener('close', syncMiniPlayer);
     tabs.querySelectorAll('[role=tab]').forEach((button,index,buttons) => {
@@ -277,6 +302,7 @@ function onMusicSearchInput() {
     div.querySelector('.content-refresh-error')?.remove();
     document.getElementById('music-search-message').textContent = '';
     document.getElementById('yt-search-input').removeAttribute('aria-invalid');
+    updateMusicLibrary();
 }
 
 function renderMusicLink(div, id, data = null) {
@@ -302,6 +328,8 @@ function loadMusic() {
     console.log("🎵 音樂功能載入中...");
     loadUserInfo();
     loadHistory();
+    if (isMobileMusic() && !musicOpened) switchTab('playlists');
+    musicOpened = true;
 }
 
 // 音量控制
@@ -483,22 +511,24 @@ function toggleShuffle() {
     if (btn) btn.classList.toggle('active');
 }
 
-function switchTab(name) {
+function switchTab(name, refresh = true) {
     document.querySelectorAll('#view-music [role=tab]').forEach(button => {
         const active = button.id === 'music-tab-' + name;
         button.setAttribute('aria-selected', String(active));button.tabIndex = active ? 0 : -1;
     });
-    if (name !== 'playlists') closePlaylist();
+    musicSection = name;
+    if (!isMobileMusic() && name !== 'playlists') closePlaylist();
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
     const btns = document.querySelectorAll('.tab-btn');
     if (name === 'search' && btns[0]) btns[0].classList.add('active');
-    if (name === 'playlists' && btns[1]) { btns[1].classList.add('active'); loadPlaylists(); }
-    if (name === 'history' && btns[2]) { btns[2].classList.add('active'); loadHistory(); }
+    if (name === 'playlists' && btns[1]) { btns[1].classList.add('active'); if (refresh || !document.getElementById('playlists-list').dataset.musicSource) loadPlaylists(); }
+    if (name === 'history' && btns[2]) { btns[2].classList.add('active'); if (refresh || !document.getElementById('history-list').dataset.musicSource) loadHistory(); }
 
     const targetTab = document.getElementById('tab-' + name);
     if (targetTab) targetTab.classList.add('active');
+    updateMusicLibrary();
 }
 
 // Preserve a completed view while refreshing; only first visits show static shapes.
@@ -556,6 +586,7 @@ async function searchYouTube() {
     }
     input.removeAttribute('aria-invalid');
     document.getElementById('music-search-message').textContent = '';
+    if (isMobileMusic()) switchTab('search');
     // Dismiss the mobile keyboard on submission, never on a late response.
     if (matchMedia('(max-width:768px)').matches && document.activeElement === input) input.blur();
     if (id) {
@@ -577,7 +608,9 @@ async function loadPlaylists() {
         const playlists = data.playlists || [];div.replaceChildren();
         if (!playlists.length) {div.append(FlowUI.node('p', '沒有找到歌單'));return;}
         for (const playlist of playlists) {
-            const row = musicRow(playlist.title, `${playlist.count} songs`, playlist.thumbnail);
+            const row = musicRow(playlist.title, `${playlist.count} 首歌曲`, playlist.thumbnail);
+            row.setAttribute('role', 'button');row.tabIndex=0;
+            row.addEventListener('keydown', event => {if(event.key==='Enter'||event.key===' '){event.preventDefault();row.click();}});
             row.onclick = () => loadPlaylistItems(playlist.id, playlist.title);div.append(row);
         }
     }, loadPlaylists);

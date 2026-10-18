@@ -1,7 +1,25 @@
 <div id="view-music" class="app-view">
     <div class="app-header">
         <h1 class="app-title"><i class="fa-solid fa-music"></i> Music Center</h1>
-        <div class="user-placeholder"></div>
+        <div class="music-header-actions">
+            <button type="button" id="music-history-button" class="btn-tool music-mobile-only" onclick="openMusicHistory()" aria-label="播放紀錄" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/></svg></button>
+            <div class="user-placeholder"></div>
+        </div>
+    </div>
+
+    <div id="music-search-area">
+        <form class="yt-search-box" id="music-search-form" role="search" aria-label="尋找音樂"
+            onsubmit="event.preventDefault(); searchYouTube()">
+            <label for="yt-search-input" class="loading-sr-label">搜尋歌曲、歌手或貼上 YouTube 連結</label>
+            <input type="text" id="yt-search-input" placeholder="搜尋歌曲、歌手或貼上 YouTube 連結"
+                maxlength="500" enterkeyhint="search" autocomplete="off" required
+                aria-describedby="music-search-message" oninput="onMusicSearchInput()">
+            <button type="button" id="music-search-clear" class="btn-tool music-mobile-only" onclick="clearMusicSearch()" aria-label="清除搜尋" hidden>×</button>
+            <button type="submit" class="btn-tool music-search-submit" aria-label="搜尋或辨識連結">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+            </button>
+        </form>
+        <p id="music-search-message" class="music-search-message" role="status"></p>
     </div>
 
     <div id="music-mini-player" class="music-mini-player" hidden role="group" aria-label="目前播放">
@@ -86,6 +104,10 @@
         </div>
 
         <div class="playlist-side">
+            <div id="music-library-toolbar" class="music-mobile-only">
+                <button type="button" class="btn-tool" id="music-library-back" onclick="backToMusicLibrary()" aria-label="返回音樂歌單" hidden>←</button>
+                <h2 id="music-library-title">我的歌單</h2>
+            </div>
             <div class="tab-group" role="tablist" aria-label="音樂分頁">
                 <button class="tab-btn active" id="music-tab-search" role="tab" aria-selected="true" aria-controls="tab-search" tabindex="0" onclick="switchTab('search')">搜尋</button>
                 <button class="tab-btn" id="music-tab-playlists" role="tab" aria-selected="false" aria-controls="tab-playlists" tabindex="-1" onclick="switchTab('playlists')">歌單</button>
@@ -93,17 +115,7 @@
             </div>
 
             <div id="tab-search" role="tabpanel" aria-labelledby="music-tab-search" class="tab-content active">
-                <form class="yt-search-box" id="music-search-form" role="search" aria-label="尋找音樂"
-                    onsubmit="event.preventDefault(); searchYouTube()">
-                    <label for="yt-search-input" class="loading-sr-label">搜尋歌曲、歌手或貼上 YouTube 連結</label>
-                    <input type="text" id="yt-search-input" placeholder="搜尋歌曲、歌手或貼上 YouTube 連結"
-                        maxlength="500" enterkeyhint="search" autocomplete="off" required
-                        aria-describedby="music-search-message" oninput="onMusicSearchInput()">
-                    <button type="submit" class="btn-tool music-search-submit" aria-label="搜尋或辨識連結">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
-                    </button>
-                </form>
-                <p id="music-search-message" class="music-search-message" role="status"></p>
+                <div id="music-search-slot"></div>
 
                 <div id="yt-results" class="track-list"></div>
             </div>

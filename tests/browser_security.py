@@ -320,7 +320,7 @@ with sync_playwright() as p:
  assert media.evaluate('document.documentElement.scrollWidth<=innerWidth')
  media.screenshot(path=str(out/'music-mini-mobile.png'))
  # The tab strip and player stay above the list, even at item 237.
- tabs_box=media.locator('#view-music > .tab-group').bounding_box()
+ tabs_box=media.locator('#view-music > #music-search-area').bounding_box()
  mini_box=media.locator('#music-mini-player').bounding_box()
  assert tabs_box['y']+tabs_box['height']<=mini_box['y']+1
  scroll=media.locator('#playlist-songs').evaluate('(e)=>e.scrollTop')
@@ -346,20 +346,22 @@ with sync_playwright() as p:
  media.locator('#music-player-dialog').wait_for(state='hidden')
  assert media.locator('#music-player-dialog').is_hidden()
  media.set_viewport_size({'width':390,'height':844})
- media.get_by_role('tab',name='歌單',exact=True).focus()
- media.keyboard.press('ArrowRight')
- assert media.get_by_role('tab',name='紀錄',exact=True).get_attribute('aria-selected')=='true'
- media.evaluate("switchTab('playlists')")
+ media.locator('#music-history-button').click()
+ assert media.locator('#tab-history').is_visible()
+ media.locator('#music-library-back').click()
+ assert media.locator('#tab-playlists').is_visible()
+ assert media.locator('#playlist-songs').evaluate('(e)=>e.scrollTop')==scroll
  # Desktop retains the existing complete player.
  media.evaluate('window.beforeResizePlays=window.playCalls')
  media.set_viewport_size({'width':1440,'height':900})
  assert media.locator('#music-mini-player').is_hidden()
  media.locator('.music-layout > .now-playing').wait_for(state='attached')
  assert media.locator('.music-layout > .now-playing').count()==1
- assert media.locator('.playlist-side > .tab-group').count()==1
+ assert media.locator('.playlist-side > .tab-group').is_visible()
+ assert media.locator('#tab-search #music-search-area').count()==1
  assert media.locator('#music-player-dialog').is_hidden()
  media.set_viewport_size({'width':390,'height':844})
- media.locator('#view-music > .tab-group').wait_for(state='attached')
+ media.locator('#view-music > #music-search-area').wait_for(state='attached')
  assert media.evaluate('window.playCalls===beforeResizePlays')
  assert media.locator('#audio-player').evaluate("e=>e.parentElement.id==='view-music'")
  # Failure on page two must not silently replace the queue with the first 50 songs.
@@ -404,6 +406,7 @@ with sync_playwright() as p:
  loading.evaluate("openApp('music')")
  loading.wait_for_timeout(400)
  pending=[]
+ loading.evaluate("delete document.querySelector('#playlists-list').dataset.musicSource")
  loading.route('**/api/music/playlists',lambda route:pending.append(route))
  loading.evaluate("switchTab('playlists')")
  loading.wait_for_function("document.querySelector('#playlists-list .content-skeleton')!==null")
@@ -466,7 +469,7 @@ with sync_playwright() as p:
  loading.wait_for_timeout(50)
  assert 'Stale result' not in loading.locator('#yt-results').inner_text()
  # One form handles keywords and video links, with explicit playback consent.
- assert loading.locator('#tab-search input').count()==1
+ assert loading.locator('#music-search-area input').count()==1
  assert loading.locator('#yt-url-input, #btn-quick-play').count()==0
  ids=loading.evaluate("""() => [
  'https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PL-test',
@@ -550,12 +553,14 @@ with sync_playwright() as p:
  assert loading.locator('#yt-results').get_attribute('aria-busy')=='false'
  # Desktop retains keyboard focus; a delayed mobile response never steals it.
  loading.set_viewport_size({'width':1440,'height':900})
+ loading.locator('#music-search-slot #yt-search-input').wait_for(state='attached')
  search_input.fill('Desktop focus');search_input.press('Enter')
  assert search_input.evaluate('(e)=>e===document.activeElement')
  loading.wait_for_timeout(50)
  searches.pop().fulfill(status=200,json={'items':[]})
  loading.wait_for_function("document.querySelector('#yt-results').getAttribute('aria-busy')==='false'")
  loading.set_viewport_size({'width':390,'height':844})
+ loading.locator('#view-music > #music-search-area #yt-search-input').wait_for(state='attached')
  search_input.fill('Mobile focus');search_input.press('Enter')
  assert not search_input.evaluate('(e)=>e===document.activeElement')
  search_input.focus()
@@ -675,10 +680,12 @@ with sync_playwright() as p:
   layout.set_viewport_size({'width':width,'height':height})
   # Reserve the dock plus a representative 34px home-indicator inset.
   layout.evaluate("document.documentElement.style.setProperty('--mobile-dock-height','102px')")
-  for tab,list_id,control in [('search','yt-results','#music-search-form button'),('playlists','playlists-list','.btn-create-playlist'),('history','history-list','.music-history-toolbar button'),('detail','playlist-songs','.music-playlist-toolbar button')]:
+  for tab,list_id,control in [('search','yt-results','#music-search-form button[type=submit]'),('playlists','playlists-list','#music-history-button'),('history','history-list','.music-history-toolbar button'),('detail','playlist-songs','.music-playlist-toolbar button')]:
    if tab=='detail':
     layout.evaluate("switchTab('playlists');void loadPlaylistItems('PL-layout','Long playlist title for a narrow screen')")
-   else:layout.evaluate('(name)=>switchTab(name)',tab)
+   else:
+    if tab=='playlists':layout.evaluate('closePlaylist()')
+    layout.evaluate('(name)=>switchTab(name)',tab)
    if tab=='search':layout.evaluate('(items)=>renderList(document.querySelector("#yt-results"),items)',fixture)
    layout.wait_for_function('(id)=>document.querySelectorAll("#"+id+" .track-item").length===24',arg=list_id)
    viewport=layout.locator('#'+list_id)
@@ -694,7 +701,39 @@ with sync_playwright() as p:
    if width==393:
     layout.wait_for_timeout(350)  # Capture the settled tab, not its entrance opacity.
     layout.screenshot(path=str(out/f'music-unclipped-{tab}.png'))
+ layout.evaluate("musicQueue=[{id:'aaaaaaaaaaa',title:'Now playing',channel:'Artist'}];currentSong=musicQueue[0];syncMiniPlayer()")
+ for width in [320,390,768]:
+  layout.set_viewport_size({'width':width,'height':844})
+  layout.wait_for_timeout(60)
+  search=layout.locator('#music-search-area').bounding_box()
+  mini=layout.locator('#music-mini-player').bounding_box()
+  assert search['y']+search['height']<=mini['y']+1
+  assert layout.locator('.playlist-side>.tab-group').is_hidden()
+ layout.route('**/api/music/search?*',lambda r:r.fulfill(json={'items':fixture}))
+ layout.locator('#yt-search-input').fill('Visible')
+ layout.locator('#music-search-form').evaluate('(e)=>e.requestSubmit()')
+ layout.locator('#yt-results .track-item').first.wait_for()
+ assert layout.locator('#tab-search').is_visible()
+ assert layout.locator('#music-mini-title').inner_text()=='Now playing'
+ layout.locator('#music-history-button').click()
+ assert layout.locator('#tab-history').is_visible()
+ layout.locator('#music-library-back').click()
+ assert layout.locator('#tab-search').is_visible()
+ layout.locator('#music-search-clear').click()
+ assert layout.locator('#tab-playlists').is_visible()
+ assert layout.locator('#music-library-back').is_hidden()
+ assert layout.locator('#music-search-clear').is_hidden()
+ assert layout.locator('#yt-search-input').input_value()==''
+ layout.locator('#yt-search-input').blur()
+ layout.set_viewport_size({'width':390,'height':844})
+ layout.wait_for_timeout(350)
+ layout.screenshot(path=str(out/'music-single-page-mobile.png'))
+ layout.set_viewport_size({'width':1440,'height':900})
+ assert layout.locator('.playlist-side>.tab-group').is_visible()
+ assert layout.locator('#tab-search #music-search-area').count()==1
+ layout.screenshot(path=str(out/'music-single-page-desktop.png'))
  layout.close()
+ probes['musicSinglePage']='mobile search/player order, history return, clear, single audio and desktop tabs PASS'
  probes['musicLayout']='search/playlists/history/detail: unmasked controls, full last row and dock clearance at 320/390/393px with safe-area reserve PASS'
  probes['musicSheet']='entry/dismiss/return, cover-click exclusion, real touch/cancel, sliders, focus/scroll, resize, reduced motion and single audio PASS'
  probes['loadingPresentation']='static placeholders, retained refresh, retry, deduplication, stale search isolation and mobile Drive PASS'

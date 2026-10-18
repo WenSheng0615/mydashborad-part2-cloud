@@ -433,3 +433,30 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
  #view-music .btn-create-playlist{min-height:44px}
  #view-music .track-list{box-sizing:border-box;padding-bottom:16px;scroll-padding-block:12px}
 }
+
+/* Mobile library: one search entry, a persistent player and one list viewport. */
+.music-mobile-only{display:none}
+#view-music .music-mobile-only[hidden],#music-library-back[hidden]{display:none!important}
+.music-header-actions{display:flex;align-items:center;gap:8px}
+#music-search-area{flex:none;min-width:0}
+@media(max-width:768px){
+ #view-music .playlist-side>.tab-group{display:none}
+ #view-music .music-mobile-only:not([hidden]){display:flex}
+ #view-music .music-header-actions>button{width:44px;height:44px;flex:none}
+ #music-history-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+ #music-history-button[aria-pressed=true]{color:var(--accent);background:var(--accent-dim)}
+ #view-music>#music-search-area{margin:0 0 12px}
+ #view-music #music-search-form{margin:0;gap:8px}
+ #view-music #music-search-message:not(:empty){margin:8px 0 0}
+ #view-music #music-search-clear{width:44px;min-width:44px;height:44px;font-size:24px;align-self:center}
+ #view-music #music-library-toolbar{flex:none;align-items:center;gap:10px;min-height:44px;margin-bottom:8px}
+ #music-library-title{font-size:1rem;font-weight:600;margin:0;color:var(--text-main)}
+ #view-music #music-library-back{width:44px;height:44px;flex:none;font-size:22px}
+ #view-music .btn-create-playlist{display:none}
+ #view-music #tab-history .music-history-toolbar>span{display:none}
+ #view-music #tab-history .music-history-toolbar{justify-content:flex-end!important;margin-bottom:4px!important}
+ #view-music #tab-playlists>.track-list .track-img{width:48px;height:48px;border-radius:8px}
+ #view-music .track-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+ #view-music #playlists-list .track-item::after{content:'›';color:var(--text-sub);font-size:24px;flex:none}
+ #view-music .track-channel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
