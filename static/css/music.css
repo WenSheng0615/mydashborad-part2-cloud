@@ -418,3 +418,18 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
 }
 @media(prefers-reduced-motion:reduce){#music-player-dialog::backdrop{transition:none}}
 @media(max-width:768px){#view-music #yt-search-input{font-size:16px}}
+
+#playlist-detail{height:100%}
+.music-history-toolbar .btn-tool,.music-playlist-toolbar .btn-tool{width:30px;height:30px}
+@media(max-width:768px){
+ /* The library is a viewport, not a rounded card: do not mask its toolbars. */
+ #view-music .music-layout .playlist-side{border-radius:0}
+ #view-music #music-search-form,#view-music .btn-create-playlist,
+ #view-music .music-history-toolbar,#view-music .music-playlist-toolbar{flex-shrink:0}
+ #view-music .music-history-toolbar,#view-music .music-playlist-toolbar{align-items:center;min-height:44px}
+ #view-music .music-history-toolbar .btn-tool,#view-music .music-playlist-toolbar .btn-tool{width:44px;height:44px;flex:none}
+ #view-music #playlist-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ #view-music #playlist-detail{flex:1;min-height:0;height:auto}
+ #view-music .btn-create-playlist{min-height:44px}
+ #view-music .track-list{box-sizing:border-box;padding-bottom:16px;scroll-padding-block:12px}
+}

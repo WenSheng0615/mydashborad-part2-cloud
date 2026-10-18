@@ -114,10 +114,10 @@
                 </button>
 
                 <div id="playlists-list" class="track-list"></div>
-                <div id="playlist-detail" style="display:none; flex-direction:column; height:100%;">
-                    <div
+                <div id="playlist-detail" style="display:none; flex-direction:column;">
+                    <div class="music-playlist-toolbar"
                         style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border);">
-                        <button class="btn-tool" style="width:30px; height:30px;" onclick="closePlaylist()"><i
+                        <button class="btn-tool" aria-label="返回歌單" onclick="closePlaylist()"><i
                                 class="fa-solid fa-arrow-left"></i></button>
                         <span id="playlist-title"
                             style="font-weight:bold; font-size:1.1rem; flex:1; color:var(--text-main);"></span>
@@ -127,9 +127,9 @@
             </div>
 
             <div id="tab-history" role="tabpanel" aria-labelledby="music-tab-history" class="tab-content">
-                <div
+                <div class="music-history-toolbar"
                     style="display:flex; justify-content:space-between; margin-bottom:10px; color:var(--text-sub); font-size:0.9rem;">
-                    <span>最近播放</span><button class="btn-tool" style="width:30px; height:30px;"
+                    <span>最近播放</span><button class="btn-tool" aria-label="重新整理播放紀錄"
                         onclick="loadHistory()"><i class="fa-solid fa-rotate-right"></i></button>
                 </div>
                 <div id="history-list" class="track-list"></div>

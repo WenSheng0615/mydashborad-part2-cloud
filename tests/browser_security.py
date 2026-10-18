@@ -660,6 +660,42 @@ with sync_playwright() as p:
  gestures.get_by_role('button',name='收合完整播放器',exact=True).click()
  assert sheet.is_hidden()
  gestures.close()
+ # Real app layout: headers must not be masked and the final row must be reachable.
+ layout=b.new_page(viewport={'width':393,'height':852})
+ layout.on('pageerror',lambda e:errors.append(str(e)))
+ layout.route('**/*',intercept)
+ fixture=[{'id':str(i).zfill(11),'title':f'Visible track {i+1}','channel':'Layout QA','thumbnail':'/static/icons/icon-192.png'} for i in range(24)]
+ layout.route('**/api/music/history',lambda r:r.fulfill(json={'items':fixture}))
+ layout.route('**/api/music/playlists',lambda r:r.fulfill(json={'playlists':[dict(t,count=24) for t in fixture]}))
+ layout.route('**/api/music/playlist/items?*',lambda r:r.fulfill(json={'items':fixture}))
+ layout.goto('http://127.0.0.1:8000/',wait_until='networkidle')
+ layout.evaluate("openApp('music')")
+ layout.wait_for_timeout(400)
+ for width,height in [(320,568),(390,700),(393,852)]:
+  layout.set_viewport_size({'width':width,'height':height})
+  # Reserve the dock plus a representative 34px home-indicator inset.
+  layout.evaluate("document.documentElement.style.setProperty('--mobile-dock-height','102px')")
+  for tab,list_id,control in [('search','yt-results','#music-search-form button'),('playlists','playlists-list','.btn-create-playlist'),('history','history-list','.music-history-toolbar button'),('detail','playlist-songs','.music-playlist-toolbar button')]:
+   if tab=='detail':
+    layout.evaluate("switchTab('playlists');void loadPlaylistItems('PL-layout','Long playlist title for a narrow screen')")
+   else:layout.evaluate('(name)=>switchTab(name)',tab)
+   if tab=='search':layout.evaluate('(items)=>renderList(document.querySelector("#yt-results"),items)',fixture)
+   layout.wait_for_function('(id)=>document.querySelectorAll("#"+id+" .track-item").length===24',arg=list_id)
+   viewport=layout.locator('#'+list_id)
+   viewport.evaluate('(e)=>e.scrollTop=e.scrollHeight')
+   bounds=viewport.bounding_box();last=viewport.locator('.track-item').last.bounding_box()
+   assert last['y']>=bounds['y']-1,(width,tab,bounds,last)
+   assert last['y']+last['height']<=bounds['y']+bounds['height']-8,(width,tab,bounds,last)
+   assert bounds['y']+bounds['height']<=layout.locator('.mobile-dock').bounding_box()['y'],(width,tab)
+   button=layout.locator(control)
+   assert button.evaluate('''e=>{const r=e.getBoundingClientRect();const hit=document.elementFromPoint(r.right-4,r.top+6);return hit===e||e.contains(hit);}'''),(width,tab,'Control masked')
+   assert layout.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,tab)
+   assert viewport.evaluate('(e)=>e.scrollWidth<=e.clientWidth+1'),(width,tab)
+   if width==393:
+    layout.wait_for_timeout(350)  # Capture the settled tab, not its entrance opacity.
+    layout.screenshot(path=str(out/f'music-unclipped-{tab}.png'))
+ layout.close()
+ probes['musicLayout']='search/playlists/history/detail: unmasked controls, full last row and dock clearance at 320/390/393px with safe-area reserve PASS'
  probes['musicSheet']='entry/dismiss/return, cover-click exclusion, real touch/cancel, sliders, focus/scroll, resize, reduced motion and single audio PASS'
  probes['loadingPresentation']='static placeholders, retained refresh, retry, deduplication, stale search isolation and mobile Drive PASS'
  probes['mediaSession']='metadata, prepared transition, buffering state, scrub, warm-up failure, controls and unsupported API PASS'
