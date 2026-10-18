@@ -556,6 +556,8 @@ async function searchYouTube() {
     }
     input.removeAttribute('aria-invalid');
     document.getElementById('music-search-message').textContent = '';
+    // Dismiss the mobile keyboard on submission, never on a late response.
+    if (matchMedia('(max-width:768px)').matches && document.activeElement === input) input.blur();
     if (id) {
         const url = 'https://www.youtube.com/oembed?' + new URLSearchParams({url:`https://www.youtube.com/watch?v=${id}`,format:'json'});
         return refreshMusicList(div, url, data => renderMusicLink(div, id, data), searchYouTube,

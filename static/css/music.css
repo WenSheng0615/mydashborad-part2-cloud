@@ -417,3 +417,4 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
  #music-player-dialog .music-sheet-head{margin-bottom:12px}
 }
 @media(prefers-reduced-motion:reduce){#music-player-dialog::backdrop{transition:none}}
+@media(max-width:768px){#view-music #yt-search-input{font-size:16px}}

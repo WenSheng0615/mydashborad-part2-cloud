@@ -479,8 +479,10 @@ with sync_playwright() as p:
  ].map(extractVideoId)""")
  assert ids==['aaaaaaaaaaa']*6+[None]*6,ids
  search_input=loading.locator('#yt-search-input')
+ assert search_input.evaluate("e=>getComputedStyle(e).fontSize")=='16px'
  search_input.fill('abcdefghijk')
  search_input.press('Enter')
+ assert not search_input.evaluate('(e)=>e===document.activeElement')
  loading.wait_for_timeout(50)
  assert parse_qs(urlsplit(searches[-1].request.url).query)['query']==['abcdefghijk']
  searches.pop().fulfill(status=200,json={'items':[]})
@@ -523,6 +525,7 @@ with sync_playwright() as p:
   search_input.press('Enter')
   assert search_input.input_value()==invalid
   assert search_input.get_attribute('aria-invalid')=='true'
+  assert search_input.evaluate('(e)=>e===document.activeElement')
   assert loading.locator('#music-search-message').inner_text()
  assert len(searches)==before_searches and not links
  # Editing invalidates metadata requests as well as ordinary searches.
@@ -545,6 +548,21 @@ with sync_playwright() as p:
  assert loading.locator('.music-link-fallback').count()==1
  assert 'Private provider detail' not in loading.locator('#yt-results').inner_text()
  assert loading.locator('#yt-results').get_attribute('aria-busy')=='false'
+ # Desktop retains keyboard focus; a delayed mobile response never steals it.
+ loading.set_viewport_size({'width':1440,'height':900})
+ search_input.fill('Desktop focus');search_input.press('Enter')
+ assert search_input.evaluate('(e)=>e===document.activeElement')
+ loading.wait_for_timeout(50)
+ searches.pop().fulfill(status=200,json={'items':[]})
+ loading.wait_for_function("document.querySelector('#yt-results').getAttribute('aria-busy')==='false'")
+ loading.set_viewport_size({'width':390,'height':844})
+ search_input.fill('Mobile focus');search_input.press('Enter')
+ assert not search_input.evaluate('(e)=>e===document.activeElement')
+ search_input.focus()
+ loading.wait_for_timeout(50)
+ searches.pop().fulfill(status=200,json={'items':[]})
+ loading.wait_for_function("document.querySelector('#yt-results').getAttribute('aria-busy')==='false'")
+ assert search_input.evaluate('(e)=>e===document.activeElement')
  probes['unifiedMusicSearch']='one accessible form, Enter/button, strict URLs, safe preview, explicit playback, stale responses and guest fallback PASS'
  # Other app entry points use the same static, responsive visual language.
  files=[]
