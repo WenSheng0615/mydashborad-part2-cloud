@@ -242,7 +242,9 @@ with sync_playwright() as p:
  assert media.evaluate('musicQueue.length')==237
  assert media.locator('#playlist-songs .track-item').count()==0
  assert media.get_by_role('button',name='重新載入歌曲',exact=True).count()==1
- assert '已讀取 50 首' in media.locator('#playlist-songs').inner_text()
+ assert media.locator('#playlist-songs').get_attribute('aria-busy')=='false'
+ assert '暫時無法開啟歌單' in media.locator('#playlist-songs').inner_text()
+ assert '50' not in media.locator('#playlist-songs').inner_text()
  media.unroute('**/api/music/playlist/items?*',playlist_failure)
  media.get_by_role('button',name='重新載入歌曲',exact=True).click()
  media.wait_for_function("document.querySelectorAll('#playlist-songs .track-item').length===237")
@@ -251,9 +253,15 @@ with sync_playwright() as p:
  const original=window.fetch;
  window.fetch=(url,...args)=>String(url).startsWith('/api/music/playlist/items?')?
    new Promise(resolve=>window.latePlaylist=resolve):original(url,...args);
- const loading=loadPlaylistItems('PL-late','Old request');closePlaylist();
+ window.cancelledPlaylist=loadPlaylistItems('PL-late','Old request');
+ }""")
+ assert media.locator('.playlist-skeleton-row').count()==5
+ assert media.locator('#playlist-songs').get_attribute('aria-busy')=='true'
+ assert media.locator('#playlist-songs').inner_text()=='正在載入歌單'
+ media.evaluate("""async () => {
+ closePlaylist();
  latePlaylist(new Response(JSON.stringify({items:[{id:'late',title:'Stale song'}]}),{status:200}));
- await loading;
+ await cancelledPlaylist;
  }""")
  assert media.evaluate('musicQueue.length')==237
  probes['playlistPagination']='237 songs/5 pages, order, last-song playback, partial failure and cancelled response PASS'

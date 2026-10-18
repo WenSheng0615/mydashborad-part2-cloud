@@ -77,3 +77,8 @@ The player prepares only the next track's signed URL (not media bytes) while the
 Scrubbing previews time while dragging and commits a single seek on release/change. Waiting/seeking/error states pause Media Session progress reporting; playing restores it, preventing the app's supplied system position from extrapolating while buffering. The UI reports loading/failure. Unsupported browser APIs remain optional.
 
 Regression tests use recorded Media Session and controlled media events/provider responses: synchronous prepared-track transition, preparation before ended, expired URL eviction, scrub preview/commit, waiting-to-playing states and existing metadata/pagination scenarios. The real yt-dlp selector is tested against HTTPS M4A, HLS M4A and higher-bitrate WebM with fallback. Physical iPhone background continuation, upstream Range behavior and long-duration locked-screen playback remain owner acceptance checks. iOS may still suspend JavaScript/network or reject automatic playback; no silent-audio workaround, native-background guarantee or new infrastructure is claimed.
+
+
+## Playlist loading presentation — 2026-10-18
+
+Provider page counters are no longer exposed in the Music UI. A stable five-row skeleton with a single loading announcement represents pending playlist data; aria-busy marks the list and reduced-motion disables the pulse. Completion shows only the final song count; failure uses a dedicated empty-state card with retry and preservation guidance, without partial page numbers. Full pagination, ordering, cancellation, active queue preservation and retry behavior are unchanged. Browser regression and mobile/desktop loading/error/ready screenshot review cover this increment.

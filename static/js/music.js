@@ -439,6 +439,21 @@ async function loadPlaylists() {
     } catch (e) { }
 }
 
+function playlistLoadingState() {
+    const state = FlowUI.node('div', null, 'playlist-loading');
+    const label = FlowUI.node('p', '正在載入歌單', 'playlist-loading-label');
+    label.setAttribute('role', 'status');state.append(label);
+    const skeleton = FlowUI.node('div', null, 'playlist-skeleton');
+    skeleton.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 5; i++) {
+        const row = FlowUI.node('div', null, 'playlist-skeleton-row');
+        const lines = FlowUI.node('div', null, 'playlist-skeleton-lines');
+        lines.append(FlowUI.node('span'), FlowUI.node('span'));
+        row.append(FlowUI.node('span', null, 'playlist-skeleton-cover'), lines);skeleton.append(row);
+    }
+    state.append(skeleton);return state;
+}
+
 async function loadPlaylistItems(pid, title) {
     if (playlistLoadController) playlistLoadController.abort();
     const controller = new AbortController();
@@ -447,9 +462,8 @@ async function loadPlaylistItems(pid, title) {
     document.getElementById('playlist-detail').style.display = 'flex';
     document.getElementById('playlist-title').innerText = title;
     const div = document.getElementById('playlist-songs');
-    const status = FlowUI.node('p', '載入歌曲…');
-    status.setAttribute('role', 'status');
-    div.replaceChildren(status);
+    div.setAttribute('aria-busy', 'true');
+    div.replaceChildren(playlistLoadingState());
     const items = [], pages = new Set();
     let token = '';
     try {
@@ -468,20 +482,22 @@ async function loadPlaylistItems(pid, title) {
             items.push(...data.items);
             token = data.next_page_token || '';
             if (typeof token !== 'string') throw new Error('Invalid playlist token');
-            status.textContent = `已讀取 ${items.length} 首，${token ? '繼續載入…' : '載入完成。'}`;
         } while (token);
         if (controller !== playlistLoadController) return;
         // Display only complete playlists; selecting a row activates its queue.
         renderList(div, items, 'playlist');
-        div.prepend(FlowUI.node('p', items.length ? `已載入 ${items.length} 首歌曲` : '歌單內沒有可顯示的歌曲。'));
+        div.prepend(FlowUI.node('p', items.length ? `${items.length} 首歌曲` : '這份歌單還沒有歌曲', 'playlist-summary'));
     } catch (_) {
         if (controller !== playlistLoadController) return;
-        status.textContent = `歌單尚未載入完成（已讀取 ${items.length} 首），請重試。原播放佇列已保留。`;
+        const state = FlowUI.node('div', null, 'playlist-error');
+        const symbol = FlowUI.node('span', '↻', 'playlist-state-symbol');symbol.setAttribute('aria-hidden', 'true');
+        const status = FlowUI.node('h3', '暫時無法開啟歌單');status.setAttribute('role', 'status');
+        state.append(symbol, status, FlowUI.node('p', '請稍後再試，目前的播放佇列會保留。'));
         const retry = FlowUI.node('button', '重新載入歌曲', 'btn-tool');
         retry.type = 'button'; retry.onclick = () => loadPlaylistItems(pid, title);
-        div.replaceChildren(status, retry);
+        state.append(retry);div.replaceChildren(state);
     } finally {
-        if (controller === playlistLoadController) playlistLoadController = null;
+        if (controller === playlistLoadController) { div.setAttribute('aria-busy', 'false'); playlistLoadController = null; }
     }
 }
 
