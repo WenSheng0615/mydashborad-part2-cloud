@@ -305,6 +305,16 @@ with sync_playwright() as p:
  media.locator('#music-mini-toggle').click()
  assert media.locator('#music-mini-toggle').get_attribute('aria-label')=='暫停'
  assert media.locator('audio').count()==1
+ media.locator('#music-mini-prev').click()
+ assert media.evaluate('currentTrackIndex')==235
+ media.evaluate("""async()=>{const pending=preparingStreams.get('00000000235');pendingTracks['00000000235'](new Response(JSON.stringify({url:'/track-236',title:'Track 236'}),{status:200}));await pending;}""")
+ media.wait_for_function("document.querySelector('#music-mini-title').textContent==='Track 236'")
+ media.locator('#music-mini-player').get_by_role('button',name='下一首',exact=True).click()
+ assert media.evaluate('currentTrackIndex')==236
+ media.evaluate('currentTrackIndex=0;syncMiniPlayer()')
+ assert media.locator('#music-mini-prev').is_disabled()
+ media.evaluate('currentTrackIndex=236;syncMiniPlayer()')
+ assert media.evaluate('document.documentElement.scrollWidth<=innerWidth')
  media.screenshot(path=str(out/'music-mini-mobile.png'))
  media.get_by_role('button',name='回到完整播放器',exact=True).click()
  media.wait_for_function("document.querySelector('#view-music .music-layout').scrollTop<2")

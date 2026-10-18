@@ -68,6 +68,7 @@ function syncMiniPlayer() {
         document.getElementById('music-mini-artist').textContent = currentSong.channel || 'YouTube';
         mini.setAttribute('aria-label', `目前播放：${currentSong.title || '未知曲目'}，${currentSong.channel || 'YouTube'}`);
     }
+    document.getElementById('music-mini-prev').disabled = currentTrackIndex <= 0;
     const toggle = document.getElementById('music-mini-toggle');
     toggle.setAttribute('aria-label', isPlaying ? '暫停' : '播放');
     toggle.querySelector('path').setAttribute('d', isPlaying ? 'M6 5h4v14H6z M14 5h4v14h-4z' : 'M8 5v14l11-7z');

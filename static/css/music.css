@@ -357,3 +357,5 @@ input[type=range].slider-range::-webkit-slider-thumb:hover {
 .music-mini-track img{width:42px;height:42px;border-radius:8px;object-fit:cover;flex:none}.music-mini-info{display:grid;gap:4px;min-width:0}.music-mini-info>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem;font-weight:600}.music-mini-info>span+span{font-size:.72rem;color:var(--text-sub);font-weight:400}
 .music-mini-control{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:10px;border:0;border-radius:10px;background:transparent;color:var(--text-main);cursor:pointer}.music-mini-control svg{width:22px;height:22px;fill:currentColor}.music-mini-control:active{background:var(--accent-dim)}
 }
+
+.music-mini-control:disabled{opacity:.35;cursor:default}
