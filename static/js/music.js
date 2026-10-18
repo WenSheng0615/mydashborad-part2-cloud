@@ -218,85 +218,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ★★★ 音樂功能入口函式 ★★★
-// ★★★ 訪客救星：手動解析網址 ★★★
-let lastCheckedVid = null;
-let lastEmbedInfo = null;
-
-function onUrlInput(val) {
-    const vid = extractVideoId(val.trim());
-    const btn = document.getElementById('btn-quick-play');
-    const status = document.getElementById('url-status');
-
-    if (!vid) {
-        btn.disabled = true;
-        btn.style.opacity = 0.5;
-        status.innerText = "";
-        return;
-    }
-
-    if (vid === lastCheckedVid) return;
-    lastCheckedVid = vid;
-
-    status.innerHTML = "⏳ 正在讀取影片資訊...";
-
-    // 使用公開的 oEmbed API (不需要 API Key)
-    fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${vid}&format=json`)
-        .then(r => r.json())
-        .then(data => {
-            lastEmbedInfo = {
-                id: vid,
-                title: data.title,
-                thumbnail: `https://img.youtube.com/vi/${vid}/mqdefault.jpg`,
-                channel: data.author_name
-            };
-            status.textContent = `✅ 準備就緒：${data.title}`;
-            btn.disabled = false;
-            btn.style.opacity = 1;
-        })
-        .catch(() => {
-            status.innerHTML = "❌ 無法取得資訊，但仍可嘗試播放";
-            lastEmbedInfo = { id: vid, title: "未知影片", thumbnail: "" };
-            btn.disabled = false;
-            btn.style.opacity = 1;
-        });
+// URL detection is host/path based; an 11-character keyword remains a search.
+function extractVideoId(value) {
+    try {
+        const candidate = /^(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)\//i.test(value) ? 'https://' + value : value;
+        const url = new URL(candidate);
+        if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.port) return null;
+        const host = url.hostname.toLowerCase(), path = url.pathname.split('/').filter(Boolean);
+        let id;
+        if (host === 'youtu.be' || host === 'www.youtu.be') {
+            if (path.length === 1) id = path[0];
+        } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) {
+            if (url.pathname === '/watch') id = url.searchParams.get('v');
+            else if (path.length === 2 && ['shorts', 'live', 'embed'].includes(path[0])) id = path[1];
+        }
+        return /^[A-Za-z0-9_-]{11}$/.test(id || '') ? id : null;
+    } catch { return null; }
 }
 
-function extractVideoId(url) {
-    url = url.trim();
-    const patterns = [
-        /[?&]v=([A-Za-z0-9_-]{11})/,
-        /\/live\/([A-Za-z0-9_-]{11})/,
-        /embed\/([A-Za-z0-9_-]{11})/,
-        /youtu\.be\/([A-Za-z0-9_-]{11})/,
-        /shorts\/([A-Za-z0-9_-]{11})/,
-        /^([A-Za-z0-9_-]{11})$/ // 直接輸入 ID
-    ];
-    for (const p of patterns) {
-        const m = url.match(p);
-        if (m) return m[1];
+function onMusicSearchInput() {
+    const div = document.getElementById('yt-results');
+    const pending = musicListRequests.get(div);
+    if (pending) {musicListRequests.delete(div);pending.controller.abort();}
+    div.setAttribute('aria-busy', 'false');
+    if (div.querySelector('.music-link-preview, .content-skeleton')) {
+        div.replaceChildren();delete div.dataset.musicSource;
     }
-    return null;
+    div.querySelector('.content-refresh-error')?.remove();
+    document.getElementById('music-search-message').textContent = '';
+    document.getElementById('yt-search-input').removeAttribute('aria-invalid');
 }
 
-async function quickPlay() {
-    if (!lastEmbedInfo) return;
-
-    // 將這首歌加入當前播放佇列的第一位，並同步刷新畫面上的清單（否則播放中的曲目跟清單會對不起來）
-    musicQueue.unshift(lastEmbedInfo);
-    renderList(document.getElementById('yt-results'), musicQueue, 'search');
-
-    // 重置輸入框與按鈕狀態，讓同一首歌可以再次貼上加入
-    const btn = document.getElementById('btn-quick-play');
-    document.getElementById('yt-url-input').value = "";
-    document.getElementById('url-status').innerText = "🚀 正在啟動播放...";
-    btn.disabled = true;
-    btn.style.opacity = 0.5;
-    lastCheckedVid = null;
-    lastEmbedInfo = null;
-
-    // 立即播放
-    playTrack(0);
+function renderMusicLink(div, id, data = null) {
+    const song = {
+        id, title: typeof data?.title === 'string' && data.title.trim() ? data.title : 'YouTube 歌曲',
+        channel: typeof data?.author_name === 'string' ? data.author_name : 'YouTube',
+        thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg`
+    };
+    const preview = FlowUI.node('article', null, 'music-link-preview');
+    preview.setAttribute('aria-label', '連結歌曲預覽');
+    const cover = FlowUI.node('img');cover.src = song.thumbnail;cover.alt = '';
+    cover.onerror = () => {cover.onerror = null;cover.src = musicFallbackCover;};
+    const info = FlowUI.node('div', null, 'music-link-info');
+    info.append(FlowUI.node('span', 'YOUTUBE', 'music-link-source'), FlowUI.node('h3', song.title), FlowUI.node('p', song.channel));
+    if (!data) info.append(FlowUI.node('p', '暫時無法取得名稱，可直接嘗試播放。', 'music-link-fallback'));
+    const play = FlowUI.node('button', '播放', 'music-link-play');play.type = 'button';
+    play.setAttribute('aria-label', '播放這首歌曲');
+    play.onclick = () => {musicQueue = [song, ...musicQueue];playTrack(0);};
+    preview.append(cover, info, play);div.replaceChildren(preview);
 }
 
 function loadMusic() {
@@ -500,7 +469,7 @@ function switchTab(name) {
 
 // Preserve a completed view while refreshing; only first visits show static shapes.
 const musicListRequests = new WeakMap();
-async function refreshMusicList(div, url, render, retry) {
+async function refreshMusicList(div, url, render, retry, onFailure = null) {
     const previous = musicListRequests.get(div);
     if (previous?.url === url) return;
     previous?.controller.abort();
@@ -522,6 +491,7 @@ async function refreshMusicList(div, url, render, retry) {
         div.dataset.musicSource = url;
     } catch (_) {
         if (musicListRequests.get(div) !== request) return;
+        if (onFailure) {onFailure();return;}
         const state = FlowUI.node('div', null, 'content-refresh-error');
         state.setAttribute('role', 'status');
         state.append(FlowUI.node('span', keepContent ? '暫時無法更新，已保留目前內容。' : '暫時無法取得內容，請再試一次。'));
@@ -538,9 +508,25 @@ async function refreshMusicList(div, url, render, retry) {
 }
 
 async function searchYouTube() {
-    const q = document.getElementById('yt-search-input').value.trim();
+    const input = document.getElementById('yt-search-input');
+    const q = input.value.trim();
     if (!q) return;
     const div = document.getElementById('yt-results');
+    const id = extractVideoId(q);
+    const looksLikeLink = /^(?:[a-z][a-z\d+.-]*:|\/\/|www\.|(?:youtube\.com|youtu\.be)(?:[/?#]|$)|[^\s/]+\.[a-z]{2,}\/)/i.test(q);
+    if (!id && looksLikeLink) {
+        onMusicSearchInput();
+        input.setAttribute('aria-invalid', 'true');
+        document.getElementById('music-search-message').textContent = '請貼上有效的 YouTube 單曲連結，或改用歌名、歌手搜尋。';
+        return;
+    }
+    input.removeAttribute('aria-invalid');
+    document.getElementById('music-search-message').textContent = '';
+    if (id) {
+        const url = 'https://www.youtube.com/oembed?' + new URLSearchParams({url:`https://www.youtube.com/watch?v=${id}`,format:'json'});
+        return refreshMusicList(div, url, data => renderMusicLink(div, id, data), searchYouTube,
+            () => renderMusicLink(div, id));
+    }
     return refreshMusicList(div, `/api/music/search?query=${encodeURIComponent(q)}`,
         data => {
             const items = data.items || [];

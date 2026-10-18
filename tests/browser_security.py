@@ -426,6 +426,87 @@ with sync_playwright() as p:
  searches[0].fulfill(status=200,json={'items':[{'id':'aaaaaaaaaaa','title':'Stale result'}]})
  loading.wait_for_timeout(50)
  assert 'Stale result' not in loading.locator('#yt-results').inner_text()
+ # One form handles keywords and video links, with explicit playback consent.
+ assert loading.locator('#tab-search input').count()==1
+ assert loading.locator('#yt-url-input, #btn-quick-play').count()==0
+ ids=loading.evaluate("""() => [
+ 'https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PL-test',
+ 'https://youtu.be/aaaaaaaaaaa?si=example','https://m.youtube.com/shorts/aaaaaaaaaaa',
+ 'https://music.youtube.com/watch?v=aaaaaaaaaaa','youtube.com/live/aaaaaaaaaaa',
+ 'www.youtube.com/embed/aaaaaaaaaaa',
+ 'aaaaaaaaaaa','https://youtube.com.evil.test/watch?v=aaaaaaaaaaa',
+ 'javascript:alert(1)','https://evil.test/?v=aaaaaaaaaaa',
+ 'https://www.youtube.com/playlist?list=PL-test','https://youtu.be/aaaaaaaaaaaEXTRA'
+ ].map(extractVideoId)""")
+ assert ids==['aaaaaaaaaaa']*6+[None]*6,ids
+ search_input=loading.locator('#yt-search-input')
+ search_input.fill('abcdefghijk')
+ search_input.press('Enter')
+ loading.wait_for_timeout(50)
+ assert parse_qs(urlsplit(searches[-1].request.url).query)['query']==['abcdefghijk']
+ searches.pop().fulfill(status=200,json={'items':[]})
+ loading.wait_for_function("document.querySelector('#yt-results').getAttribute('aria-busy')==='false'")
+ search_input.fill('t.A.T.u')
+ search_input.press('Enter')
+ loading.wait_for_timeout(50)
+ assert parse_qs(urlsplit(searches[-1].request.url).query)['query']==['t.A.T.u']
+ searches.pop().fulfill(status=200,json={'items':[]})
+ loading.wait_for_function("document.querySelector('#yt-results').getAttribute('aria-busy')==='false'")
+ links=[]
+ loading.route('https://www.youtube.com/oembed?*',lambda route:links.append(route))
+ search_input.fill('https://youtu.be/ccccccccccc?si=public')
+ loading.get_by_role('button',name='搜尋或辨識連結',exact=True).click()
+ loading.wait_for_timeout(50)
+ assert len(links)==1
+ assert parse_qs(urlsplit(links[0].request.url).query)['url']==['https://www.youtube.com/watch?v=ccccccccccc']
+ links.pop().fulfill(status=200,json={'title':'Preview song <img src=x onerror=alert(1)>','author_name':'Preview artist'})
+ loading.locator('.music-link-preview').wait_for()
+ assert loading.locator('.music-link-info h3 img').count()==0
+ assert loading.locator('.music-link-info h3').inner_text()=='Preview song <img src=x onerror=alert(1)>'
+ assert loading.evaluate('musicQueue.length')==0
+ assert loading.evaluate('currentSong') is None
+ loading.locator('.music-link-preview').scroll_into_view_if_needed()
+ loading.screenshot(path=str(out/'music-unified-search-mobile.png'))
+ loading.set_viewport_size({'width':1440,'height':900})
+ loading.wait_for_timeout(400)
+ assert loading.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ loading.screenshot(path=str(out/'music-unified-search-desktop.png'))
+ loading.set_viewport_size({'width':390,'height':844})
+ loading.wait_for_timeout(400)
+ # Verify explicit handoff to the existing player, without real media networking.
+ loading.evaluate("() => {musicQueue=[{id:'old-track',title:'Existing queue'}];playTrack=index=>{window.previewPlayed={index,id:musicQueue[index].id}};}")
+ loading.get_by_role('button',name='播放這首歌曲',exact=True).click()
+ assert loading.evaluate('previewPlayed')=={'index':0,'id':'ccccccccccc'}
+ assert loading.evaluate('musicQueue[1].id')=='old-track'
+ before_searches=len(searches)
+ for invalid in ['https://example.test/?v=aaaaaaaaaaa','https://www.youtube.com/playlist?list=PL-test','https://youtu.be/invalid']:
+  search_input.fill(invalid)
+  search_input.press('Enter')
+  assert search_input.input_value()==invalid
+  assert search_input.get_attribute('aria-invalid')=='true'
+  assert loading.locator('#music-search-message').inner_text()
+ assert len(searches)==before_searches and not links
+ # Editing invalidates metadata requests as well as ordinary searches.
+ search_input.fill('https://youtu.be/ddddddddddd')
+ search_input.press('Enter')
+ loading.wait_for_timeout(50)
+ late_link=links.pop()
+ search_input.fill('Different query')
+ late_link.fulfill(status=200,json={'title':'Stale preview','author_name':'Old'})
+ loading.wait_for_timeout(50)
+ assert loading.locator('.music-link-preview').count()==0
+ assert loading.locator('#yt-results .content-skeleton').count()==0
+ assert search_input.get_attribute('aria-invalid') is None
+ # Public metadata failure does not remove the guest's link-playback entry point.
+ search_input.fill('https://youtu.be/eeeeeeeeeee')
+ search_input.press('Enter')
+ loading.wait_for_timeout(50)
+ links.pop().fulfill(status=503,json={'error':'Private provider detail'})
+ loading.get_by_role('button',name='播放這首歌曲',exact=True).wait_for()
+ assert loading.locator('.music-link-fallback').count()==1
+ assert 'Private provider detail' not in loading.locator('#yt-results').inner_text()
+ assert loading.locator('#yt-results').get_attribute('aria-busy')=='false'
+ probes['unifiedMusicSearch']='one accessible form, Enter/button, strict URLs, safe preview, explicit playback, stale responses and guest fallback PASS'
  # Other app entry points use the same static, responsive visual language.
  files=[]
  loading.route('**/api/drive/files?*',lambda route:files.append(route))

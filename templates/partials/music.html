@@ -91,21 +91,17 @@
             </div>
 
             <div id="tab-search" class="tab-content active">
-                <div class="yt-search-box">
-                    <input type="text" id="yt-search-input" placeholder="搜尋 YouTube..."
-                        onkeyup="if(event.key==='Enter') searchYouTube()">
-                    <button class="btn-tool" onclick="searchYouTube()"><i
-                            class="fa-solid fa-magnifying-glass"></i></button>
-                </div>
-
-                <!-- 手動貼連結 (訪客專用) -->
-                <div class="yt-search-box" style="margin-top: -5px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                    <input type="text" id="yt-url-input" placeholder="貼上網址或 ID 快速播放..." oninput="onUrlInput(this.value)">
-                    <button class="btn-tool" id="btn-quick-play" onclick="quickPlay()" style="background: var(--accent); color: white; opacity: 0.5;" disabled>
-                        <i class="fa-solid fa-bolt"></i>
+                <form class="yt-search-box" id="music-search-form" role="search" aria-label="尋找音樂"
+                    onsubmit="event.preventDefault(); searchYouTube()">
+                    <label for="yt-search-input" class="loading-sr-label">搜尋歌曲、歌手或貼上 YouTube 連結</label>
+                    <input type="text" id="yt-search-input" placeholder="搜尋歌曲、歌手或貼上 YouTube 連結"
+                        maxlength="500" enterkeyhint="search" autocomplete="off" required
+                        aria-describedby="music-search-message" oninput="onMusicSearchInput()">
+                    <button type="submit" class="btn-tool music-search-submit" aria-label="搜尋或辨識連結">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
                     </button>
-                </div>
-                <div id="url-status" style="font-size: 0.72rem; margin-bottom: 10px; padding-left: 5px; color: var(--text-sub);"></div>
+                </form>
+                <p id="music-search-message" class="music-search-message" role="status"></p>
 
                 <div id="yt-results" class="track-list"></div>
             </div>
