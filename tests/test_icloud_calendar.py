@@ -25,7 +25,7 @@ def test_icloud_errors_redacted(alice, monkeypatch):
     assert 'secret-password' not in response.text
 
 
-def test_icloud_readonly_all_day_and_timezone(monkeypatch):
+def test_icloud_readonly_all_day_and_timezone(monkeypatch, db):
     import sys
     from icalendar import Calendar
     source = Calendar.from_ical('BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:all-day\r\nDTSTART;VALUE=DATE:20261011\r\nSUMMARY:Holiday\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:timed\r\nDTSTART:20261011T160000Z\r\nDTEND:20261011T170000Z\r\nSUMMARY:Meeting\r\nEND:VEVENT\r\nEND:VCALENDAR')

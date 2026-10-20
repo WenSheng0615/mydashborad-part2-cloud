@@ -554,8 +554,9 @@ async function refreshMusicList(div, url, render, retry, onFailure = null) {
         if (data.error) throw new Error('Provider unavailable');
         render(data);
         div.dataset.musicSource = url;
-    } catch (_) {
+    } catch (error) {
         if (musicListRequests.get(div) !== request) return;
+        if (FlowUI.connectionPrompt(div,error))return;
         if (onFailure) {onFailure();return;}
         const state = FlowUI.node('div', null, 'content-refresh-error');
         state.setAttribute('role', 'status');

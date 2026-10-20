@@ -26,7 +26,7 @@ class AuthResult:
         self.detail = detail
 
 
-def get_valid_credentials(session, scopes=None) -> AuthResult:
+def get_valid_credentials(session, scopes=None, persist=None) -> AuthResult:
     if not session:
         return AuthResult("no_session")
 
@@ -47,8 +47,11 @@ def get_valid_credentials(session, scopes=None) -> AuthResult:
         try:
             creds.refresh(GoogleRequest())
             is_guest = session.user_email.endswith("@focusflow.local") if session.user_email else False
-            save_session(session.session_id, creds.to_json(), session.user_email,
-                         max_age=86400 if is_guest else 604800)
+            if persist:
+                persist(creds.to_json())
+            else:
+                save_session(session.session_id, creds.to_json(), session.user_email,
+                             max_age=86400 if is_guest else 604800)
         except RefreshError as e:
             # 這才是真的「登入失效」：refresh_token 被使用者在 Google 帳號設定裡撤銷，或已過期
             return AuthResult("reauth_required", detail=str(e))
@@ -64,7 +67,24 @@ def build_google_service(request: Request, api_name: str, api_version: str, scop
     session_id = request.cookies.get("session_id")
     session = get_session_info(session_id) if session_id else None
 
-    result = get_valid_credentials(session, scopes)
+    if not session:return None,AuthResult('no_session')
+    from services import connection_service as connections
+    provider={'youtube':'youtube','tasks':'tasks','calendar':'calendar','drive':'drive'}.get(api_name)
+    try:
+        info,generation=connections.read(session,provider)
+        if not info:return None,AuthResult('not_connected')
+        if not connections.permits(info,provider,legacy=generation is None):
+            return None,AuthResult('not_connected')
+        if generation is None:
+            result=get_valid_credentials(session,scopes)
+        else:
+            from types import SimpleNamespace
+            proxy=SimpleNamespace(session_id=session.session_id,user_email=session.user_email,token_json=json.dumps(info))
+            def persist(value):
+                connections.save(session.user_email,provider,json.loads(value),session.user_email,expected=generation)
+            result=get_valid_credentials(proxy,scopes,persist=persist)
+    except Exception:
+        return None,AuthResult('error')
     if result.status != "ok":
         return None, result
 
@@ -77,8 +97,10 @@ def build_google_service(request: Request, api_name: str, api_version: str, scop
 
 def auth_error_body(result: AuthResult):
     """(response_dict, status_code)，給各 router 統一組錯誤回應用。"""
+    if result.status == 'not_connected':
+        return {"error":"請先在設定連接此服務；本機功能仍可使用","connection_required":True,"settings_url":"/?settings=connections"},403
     if result.status == "reauth_required":
-        return {"error": "Google 授權無效或已過期，請重新登入 Google 帳號", "reauth_required": True}, 401
+        return {"error": "服務授權已失效，請至設定重新連接；帳號仍保持登入", "reauth_required": True, "connection_required":True, "settings_url":"/?settings=connections"}, 401
     if result.status == "no_session":
         return {"error": "Login Required"}, 401
     return {"error": "暫時無法連線 Google，請稍後再試"}, 503

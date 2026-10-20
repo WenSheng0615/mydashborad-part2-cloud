@@ -747,6 +747,40 @@ with sync_playwright() as p:
  probes['musicSheet']='entry/dismiss/return, cover-click exclusion, real touch/cancel, sliders, focus/scroll, resize, reduced motion and single audio PASS'
  probes['loadingPresentation']='static placeholders, retained refresh, retry, deduplication, stale search isolation and mobile Drive PASS'
  probes['mediaSession']='metadata, prepared transition, buffering state, scrub, warm-up failure, controls and unsupported API PASS'
+ # Real account template with mocked providers; no external consent or credentials.
+ account=b.new_page(viewport={'width':390,'height':844})
+ account_errors=[];account.on('pageerror',lambda e:account_errors.append(str(e)))
+ account.route('**/*',intercept)
+ account_html=env.get_template('account.html').render()
+ account.route('**/account',lambda r:r.fulfill(body=account_html,content_type='text/html'))
+ account.route('**/api/auth/user',lambda r:r.fulfill(json={'logged_in':True,'is_guest':False,'info':{'name':'<img src=x onerror=alert(1)>','email':'qa@example.test','picture':''}}))
+ enabled={'tasks':True}
+ def connection_state(r):
+  r.fulfill(json={'is_guest':False,'connections':[{'id':key,'status':'unverified' if enabled.get(key) else 'not_connected','message':'Saved' if enabled.get(key) else 'Not connected'} for key in ['calendar','drive','tasks','youtube','icloud']]})
+ account.route('**/api/connections',connection_state)
+ account.goto('http://127.0.0.1:8000/account',wait_until='networkidle')
+ account.wait_for_function("document.querySelector('#content').textContent.includes('<img')")
+ assert account.locator('#content img').count()==0
+ account.locator('nav [data-page=connections]').click()
+ account.locator('[data-action=connect][data-id=icloud]').click()
+ account.locator('#icloud-username').fill('fake@example.test');account.locator('#icloud-password').fill('fake-app-password')
+ account.keyboard.press('Escape')
+ assert account.locator('#icloud-password').count()==0
+ account.locator('[data-action=disconnect][data-id=tasks]').click()
+ account.locator('#cancel-dialog').click()
+ assert enabled['tasks']
+ def delete_connection(r):
+  enabled['tasks']=False;r.fulfill(json={'status':'disconnected','local_data_preserved':True})
+ account.route('**/api/connections/tasks',delete_connection)
+ account.locator('[data-action=disconnect][data-id=tasks]').click();account.locator('#confirm-dialog').click()
+ account.wait_for_function("document.querySelector('[data-action=disconnect][data-id=tasks]')===null")
+ assert not enabled['tasks']
+ for width in (320,768,1440):
+  account.set_viewport_size({'width':width,'height':900})
+  assert account.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ assert not account_errors,account_errors
+ account.close()
+ probes['accountConnections']='safe identity text, private dialog cleanup, cancellation, disconnect and responsive layout PASS'
  report={'scope':'Mocked API, external CDN blocked; no real account mutations','panels':results,'missingHandlers':inventory,'probes':probes,'consoleErrors':errors}
  (out/'interface-test-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
  assert not inventory, inventory

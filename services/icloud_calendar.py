@@ -7,13 +7,10 @@ from config import APP_TIMEZONE
 
 
 def read_events(owner, start, end):
-    configured_owner = os.getenv("ICLOUD_OWNER_EMAIL", "").strip()
-    if not configured_owner or owner != configured_owner:
-        return {"events": [], "status": "not_configured"}
-    username = os.getenv("ICLOUD_USERNAME", "")
-    password = os.getenv("ICLOUD_APP_PASSWORD", "")
-    if not username or not password:
-        return {"events": [], "status": "not_configured"}
+    from services.connection_service import icloud_config
+    settings=icloud_config(owner)
+    if not settings:return {"events":[],"status":"not_configured"}
+    username,password=settings['username'],settings['password']
     import caldav
     events = []
     # Fixed trusted service URL; users cannot supply arbitrary network targets.

@@ -22,3 +22,5 @@ body:has(.rail) main{padding-bottom:calc(var(--mobile-dock-height) + 30px)}
 body:has(.rail) footer{display:none}
 body:has(.rail) .rail{max-height:calc(100dvh - var(--mobile-dock-height) - 65px);overflow-y:auto}
 }
+
+button.user-badge{border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-main);font:inherit;cursor:pointer}

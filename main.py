@@ -32,6 +32,15 @@ from routers.modules import router as modules_router, require_enabled
 from services.logging_service import configure_access_log
 configure_access_log()
 app = FastAPI()
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
+@app.exception_handler(RequestValidationError)
+async def safe_validation(request, error):
+    if request.url.path.startswith('/api/connections'):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({'detail':'連線資料格式不正確，請檢查 Email 與 App 專用密碼'},422)
+    return await request_validation_exception_handler(request,error)
+
 from routers.health import router as health_router
 app.include_router(health_router)
 
@@ -68,6 +77,8 @@ def legacy_service_worker():
 
 
 # --- 註冊路由 ---
+from routers.connections import router as connections_router
+app.include_router(connections_router)
 app.include_router(modules_router)
 app.include_router(drive.router, dependencies=[Depends(require_enabled("drive"))])
 app.include_router(music.router, dependencies=[Depends(require_enabled("music"))])
@@ -107,6 +118,10 @@ async def read_root(request: Request):
             db.close()
             
     return templates.TemplateResponse(request=request, name="index.html", context={"notes": notes})
+
+@app.get("/account", response_class=HTMLResponse)
+def account_page(request: Request):
+    return templates.TemplateResponse(request=request,name="account.html",context={})
 
 @app.get("/projects", response_class=HTMLResponse)
 def projects_page(request: Request):

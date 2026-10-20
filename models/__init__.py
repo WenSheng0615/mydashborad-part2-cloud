@@ -5,3 +5,5 @@ from .task import Task
 from .project_link import ProjectLink
 
 from .module_preference import ModulePreference
+
+from .connection import AccountProfile, ServiceConnection

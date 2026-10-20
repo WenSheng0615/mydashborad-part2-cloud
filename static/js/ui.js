@@ -32,9 +32,17 @@ window.FlowUI = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             const detail = data.detail || data.error;
-            throw new Error(typeof detail === 'string' ? detail : `操作失敗 (${response.status})`);
+            const error=new Error(typeof detail === 'string' ? detail : `操作失敗 (${response.status})`);
+            error.connectionRequired=!!data.connection_required;throw error;
         }
         return data;
+    },
+    connectionPrompt(container,error) {
+        if(!error.connectionRequired)return false;
+        const state=this.node('div',null,'content-refresh-error');state.setAttribute('role','status');
+        state.append(this.node('p',error.message));
+        const link=this.node('a','前往帳號與服務連線 →');link.href='/account#connections';state.append(link);
+        container.replaceChildren(state);return true;
     },
     error(error) { showAlert('操作未完成', error.message || '請稍後再試；已保留輸入內容。'); }
 };

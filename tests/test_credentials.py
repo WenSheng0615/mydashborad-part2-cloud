@@ -65,7 +65,7 @@ def test_real_sdk_callback(client, tmp_path, monkeypatch):
     destination.write_text(json.dumps(fake_credentials()))
     monkeypatch.setattr(auth, "CREDENTIALS_FILE", str(destination))
     profile = MagicMock()
-    profile.userinfo.return_value.get.return_value.execute.return_value = {"email": "sdk@example.test"}
+    profile.userinfo.return_value.get.return_value.execute.return_value = {"email": "sdk@example.test", "id":"subject-sdk", "verified_email":True}
     monkeypatch.setattr(auth, "build", MagicMock(return_value=profile))
     sent = []
 

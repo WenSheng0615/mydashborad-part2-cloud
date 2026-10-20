@@ -85,3 +85,8 @@ User confirmed a future HomeCloud module catalog analogous to selecting extensio
 
 
 Built-in module management first stage is implemented and deployed (`bba3f83`, revision 0005). 79 pytest tests plus isolated browser module workflows and live management-entry checks passed. Next collect daily-use feedback and define a versioned trusted-package contract; downloading/executing third-party code remains out of scope.
+
+
+## Account / connections — 2026-10-20
+
+本次落實 Google 身分與服務綁定分離、owner-scoped 加密連線與帳號頁；範圍與外部授權驗收限制見 [ACCOUNT_CONNECTIONS.md](ACCOUNT_CONNECTIONS.md)。下一步是實際 Google consent / iCloud 新表單驗收，沒有自動進入其他產品功能。

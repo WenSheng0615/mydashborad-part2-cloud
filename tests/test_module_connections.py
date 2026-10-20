@@ -30,7 +30,7 @@ def test_summary_is_private_local_only_and_owner_scoped(alice, monkeypatch):
     data = response.json()['connections']
     assert data['calendar'][1]['status'] == 'unverified'
     assert data['money'][0]['status'] == 'ready'
-    assert data['tasks'][0]['status'] == 'reauth_required'
+    assert data['tasks'][0]['status'] == 'not_connected'
     assert 'private-password' not in response.text and 'private-apple' not in response.text
     save_session('bob-connection', '{}', 'bob@example.test', 3600)
     alice.cookies.set('session_id', 'bob-connection')
@@ -82,7 +82,7 @@ def test_guest_missing_scope_disabled_and_timeout(alice, monkeypatch):
     assert 'private-provider-detail' not in response.text
 
 
-def test_icloud_probe_owner_boundary_and_no_event_reads(monkeypatch):
+def test_icloud_probe_owner_boundary_and_no_event_reads(monkeypatch,db):
     import caldav
     calls = []
     class Client:

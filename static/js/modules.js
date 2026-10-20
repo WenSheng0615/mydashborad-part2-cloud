@@ -25,13 +25,12 @@ window.FlowModules = (() => {
             row.append(FlowUI.node('strong',info.provider),FlowUI.node('span',info.message));
             if(withActions && info.action==='google') {
                 const button=FlowUI.node('button','連接／重新授權 Google','module-button');button.type='button';
-                button.onclick=()=>checkLogin(true);row.append(button);
+                button.onclick=()=>location.assign('/account#connections');row.append(button);
             }
             if(withActions && info.action==='icloud') {
-                const button=FlowUI.node('button','iCloud 設定說明','module-button');button.type='button';
-                const guide=FlowUI.node('p','目前由伺服器管理者設定私密 CalDAV：將你的 FocusFlow 登入帳號對應到 Apple 帳號及 App 專用密碼，設定後重新建立容器。請透過私密的部署設定操作，不要在聊天、模組搜尋欄或一般表單貼上密碼。此連線只提供唯讀行事曆。','module-footnote');guide.hidden=true;
-                button.setAttribute('aria-expanded','false');button.onclick=()=>{guide.hidden=!guide.hidden;button.setAttribute('aria-expanded',String(!guide.hidden));};
-                row.append(button,guide);
+                const button=FlowUI.node('button','管理 iCloud 連線','module-button');button.type='button';
+                button.onclick=()=>location.assign('/account#connections');
+                row.append(button);
             }
             container.append(row);
         }

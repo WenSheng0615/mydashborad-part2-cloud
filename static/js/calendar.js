@@ -77,7 +77,9 @@ async function fetchEvents() {
             ...(icloud.status === 'fulfilled' ? icloud.value.events || [] : [])
         ]};
         document.getElementById('calendar-source-status').textContent =
-            `Google：${google.status === 'fulfilled' ? '已載入' : '讀取失敗'} · iCloud：${icloud.status !== 'fulfilled' ? '讀取失敗' : icloud.value.status === 'connected' ? '已載入（唯讀）' : '尚未連線'}`;
+            `Google：${google.status === 'fulfilled' ? '已載入' : google.reason?.connectionRequired ? '尚未連接／需重新授權' : '讀取失敗'} · iCloud：${icloud.status !== 'fulfilled' ? '讀取失敗' : icloud.value.status === 'connected' ? '已載入（唯讀）' : '尚未連線'}`;
+        if(google.status!=='fulfilled' && google.reason?.connectionRequired){const link=FlowUI.node('a',' 管理服務連線 →');link.href='/account#connections';document.getElementById('calendar-source-status').append(link);}
+
 
         if (requestId !== calendarRequest) return;
         // 移除 loading

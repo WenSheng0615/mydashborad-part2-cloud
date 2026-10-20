@@ -71,7 +71,7 @@ async function loadFiles(fid = 'root', q = '', type = '') {
             return;
         }
         renderFiles(currentFilesData);
-    } catch (e) { c.innerHTML = '<p style="text-align:center; color:red;">連線錯誤</p>'; }
+    } catch (e) { if(FlowUI.connectionPrompt(c,e))return; c.innerHTML = '<p style="text-align:center; color:red;">連線錯誤</p>'; }
 }
 
 function renderFiles(files) {

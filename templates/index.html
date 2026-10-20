@@ -23,7 +23,7 @@
 
     <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
     <link rel="stylesheet" href="/static/css/components.css?v=8010">
-<link rel="stylesheet" href="/static/css/workbench.css?v=9001"><link rel="stylesheet" href="/static/css/modules.css?v=3"></head>
+<link rel="stylesheet" href="/static/css/workbench.css?v=9010"><link rel="stylesheet" href="/static/css/modules.css?v=3"></head>
 
 <body>
     <script src="/static/js/theme.js?v=8000"></script>
@@ -88,17 +88,17 @@
         {% include 'partials/quiz.html' %}
     </main>
 
-    <script src="/static/js/ui.js?v=8010"></script>
-    <script src="/static/js/modules.js?v=4"></script>
-    <script src="/static/js/drive.js?v=8010"></script>
+    <script src="/static/js/ui.js?v=9010"></script>
+    <script src="/static/js/modules.js?v=9010"></script>
+    <script src="/static/js/drive.js?v=9010"></script>
     <script src="/static/js/music-sheet.js?v=8013"></script>
-    <script src="/static/js/music.js?v=8017"></script>
-    <script src="/static/js/calendar.js?v=8010"></script>
+    <script src="/static/js/music.js?v=9010"></script>
+    <script src="/static/js/calendar.js?v=9010"></script>
     <script src="/static/js/notes.js?modules=1&v=5000"></script>
-    <script src="/static/js/tasks.js?v=7001"></script>
+    <script src="/static/js/tasks.js?v=9010"></script>
     <script src="/static/js/money.js?modules=1&v=7000"></script>
     <script src="/static/js/chat.js?modules=1&v=5000"></script>
-    <script src="/static/js/settings.js?modules=1&v=4001"></script>
+    <script src="/static/js/settings.js?v=9010"></script>
     <script src="/static/js/quiz.js?v=4002"></script>
 
     <script>
@@ -175,7 +175,7 @@
 
                 let html;
                 if (data.logged_in) {
-                    html = `<div class="user-badge" onclick="logout()"><img src="${data.info.picture}"><span>${data.info.name}</span></div>`;
+                    html = ''; // Authenticated profile text is rendered with DOM nodes below.
                 } else if (data.reauth_required) {
                     // Google 授權真的失效了（token 被撤銷/過期），跟單純沒登入分開講，才知道要重新走一次 Google 登入
                     html = `<div style="display:flex; gap:10px;">
@@ -192,13 +192,20 @@
                     </div>`;
                 }
 
-                document.querySelectorAll('.user-placeholder').forEach(el => el.innerHTML = html);
+                document.querySelectorAll('.user-placeholder').forEach(el => {
+                    if(!data.logged_in){el.innerHTML=html;return;}
+                    const badge=document.createElement('button');badge.className='user-badge';badge.type='button';
+                    badge.setAttribute('aria-label','帳號與服務連線');badge.onclick=()=>location.assign('/account');
+                    const image=document.createElement('img');image.alt='';image.src=FlowUI.url(data.info.picture)||'/static/icons/icon-192.png';
+                    const label=document.createElement('span');label.textContent=data.info.name;
+                    badge.append(image,label);el.replaceChildren(badge);
+                });
 
                 if (document.getElementById('setting-user-name')) {
                     if (data.logged_in) {
                         document.getElementById('setting-user-name').innerText = data.info.name;
                         document.getElementById('setting-user-email').innerText = data.info.email || 'Google Account';
-                        document.getElementById('setting-user-avatar').src = data.info.picture;
+                        document.getElementById('setting-user-avatar').src = FlowUI.url(data.info.picture)||'/static/icons/icon-192.png';
                     } else {
                         document.getElementById('setting-user-name').innerText = "訪客";
                         document.getElementById('setting-user-email').innerText = "未登入";
@@ -238,6 +245,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             updateAllUserStatus();
+            const requestedSettings=new URLSearchParams(location.search).get('settings');
+            if(requestedSettings==='connections')location.replace('/account#connections');
+            if(requestedSettings==='modules')openApp('modules');
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
 
             const merged = new URLSearchParams(location.search).get('guest_merged');

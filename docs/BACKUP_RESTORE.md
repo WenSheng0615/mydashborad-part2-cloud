@@ -77,3 +77,10 @@ Next scheduled execution must still be observed. A Windows copy is not geographi
 ## Module preference revision
 
 The module-management release adds additive revision 0005_module_preferences. The updated verifier accepts known 0004 and 0005 snapshots and checks the new preference schema for 0005. Deploy the updated host backup helper before switching the production DB; old snapshots remain restorable to a separate file. Downgrade with saved preferences is refused to prevent silent preference loss. See [MODULES.md](MODULES.md).
+
+
+## Account connection revision / key — 2026-10-20
+
+Verifier 支援 0006。新連線使用 Fernet 密文；SQLite snapshot 不包含獨立金鑰。正式備份必須保管 DB 同層 `.local/secrets/connections.key`。host backup wrapper 會以私密權限另保存在 backup 目錄的 `.keys/connections.key`，若現存 key 不同則停止而不覆寫。這仍是同一 VM 的第二份 key，需另外以私密方式備份到 VM 之外；既有 Windows DB 複製工具不自動複製 key，不能將其視為完整的連線憑證災難復原。
+
+還原時先停止 app，復原 DB 到隔離路徑並跑 verifier，再將原 key 複製至還原 DB 同層 `.local/secrets/connections.key`，POSIX 設為 0600／目錄 0700（Windows 設定限制 ACL）。以同 owner 的連線解密測試確認，不列印內容。遺失 key 時保留密文、Core 可用，使用者需逐服務重新授權；不覆寫 key 來假裝還原成功。完整 rollback 限制見 ACCOUNT_CONNECTIONS.md。

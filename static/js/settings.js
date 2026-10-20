@@ -58,8 +58,8 @@ async function loadStorageInfo() {
 
     try {
         const res = await fetch('/api/drive/storage');
-        if (res.status === 401) {
-            usageText.innerText = "請先登入";
+        if (res.status === 401 || res.status === 403) {
+            usageText.innerText = "請至帳號與服務連線連接 Google Drive";
             bar.style.width = '0%';
             return;
         }

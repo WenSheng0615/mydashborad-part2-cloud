@@ -14,9 +14,9 @@ def test_fresh_repeat_and_model_parity(tmp_path):
     migrate(path)
     migrate(path)
     with sqlite3.connect(path) as conn:
-        assert conn.execute("select version_num from alembic_version").fetchone()[0] == "0005_module_preferences"
+        assert conn.execute("select version_num from alembic_version").fetchone()[0] == "0006_account_connections"
         assert conn.execute("pragma integrity_check").fetchone()[0] == "ok"
-        assert len(conn.execute("select name from sqlite_master where type='table'").fetchall()) == 17
+        assert len(conn.execute("select name from sqlite_master where type='table'").fetchall()) == 19
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.attributes["database_url"] = f"sqlite:///{path.as_posix()}"
     command.check(cfg)

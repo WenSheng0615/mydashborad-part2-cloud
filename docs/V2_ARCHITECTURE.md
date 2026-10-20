@@ -53,3 +53,8 @@ Scheduled snapshots now run on the host using SQLite Backup API from a read-only
 ## App module boundary — 2026-10-15
 
 FocusFlow is evolving toward selectable Apps on a shared platform. First stage: a trusted built-in registry, owner-scoped enable/disable preferences, optional App API guards and a Settings management surface. Core Identity/Home/Settings/Workspace/Project cannot be disabled. Standalone Apps remain packaged with the monolith; downloadable packages and third-party sandboxing are future work. See [MODULES.md](MODULES.md) for lifecycle, integration/permission boundaries and migration 0005.
+
+
+## Account / connection separation — 2026-10-20
+
+帳號身分與 owner-scoped 服務憑證已分離，新增 additive Alembic 0006。Google minimal identity、逐服務授權、私密 iCloud binding、加密保存與 tombstone 邊界見 [帳號與連線](ACCOUNT_CONNECTIONS.md)。既有資料 owner key 保留，尚未導入多登入提供者或改用新 ownership UUID。

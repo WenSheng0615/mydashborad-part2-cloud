@@ -14,7 +14,7 @@ def oauth(monkeypatch, tmp_path):
     flow.credentials.to_json.return_value = "{}"
     monkeypatch.setattr(auth.Flow, "from_client_secrets_file", MagicMock(return_value=flow))
     service = MagicMock()
-    service.userinfo.return_value.get.return_value.execute.return_value = {"email": "oauth@example.test"}
+    service.userinfo.return_value.get.return_value.execute.return_value = {"email": "oauth@example.test", "id":"subject-oauth", "verified_email":True}
     monkeypatch.setattr(auth, "build", MagicMock(return_value=service))
     yield flow
     auth._oauth_attempts.clear()

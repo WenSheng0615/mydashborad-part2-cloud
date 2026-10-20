@@ -15,7 +15,7 @@ async function loadTasks() {
         renderColumn('col-todo', data.todo, 'todo');
         renderColumn('col-doing', data.doing, 'doing');
         renderColumn('col-done', data.done, 'done');
-    } catch (e) { FlowUI.error(e); }
+    } catch (e) { if(e.connectionRequired){for(const id of ['col-todo','col-doing','col-done'])document.getElementById(id).replaceChildren();FlowUI.connectionPrompt(document.getElementById('col-todo'),e);return;} FlowUI.error(e); }
 }
 
 function renderColumn(divId, tasks, stage) {
