@@ -471,3 +471,85 @@ footer { margin-top:40px; padding-bottom:max(24px,env(safe-area-inset-bottom)); 
  button { min-height:40px; }
  dialog { max-height:85dvh; overflow:auto; }
 }
+
+/* Reference-inspired workspace controls; share the light/dark theme tokens. */
+button,input,select {min-height:44px}
+button {border-radius:10px}
+button:hover {background:var(--accent-dim)}
+.primary:hover {background:var(--accent);filter:brightness(.92)}
+.rail {background:var(--sidebar-bg)}
+.brand small {letter-spacing:2px;font-size:9px}
+.nav.active {border-color:transparent;box-shadow:inset 3px 0 var(--accent)}
+#workspace-actions button {font-size:12px;background:transparent;border-color:transparent;color:var(--muted);padding:4px 6px}
+.archive-filter {display:flex;align-items:center;gap:7px}
+.archive-filter input {min-height:18px;width:18px;height:18px}
+#project-list button {border-color:transparent;background:transparent;padding:10px 12px}
+#project-list button.active {border-color:var(--line);background:var(--accent-dim);font-weight:600}
+.topbar input {background:var(--surface);border-radius:12px}
+.topbar form button {background:transparent;border-color:transparent}
+.eyebrow {font-weight:700;letter-spacing:2px}
+.stat {box-shadow:0 4px 16px #21374905}
+.stat.today {background:var(--accent-dim)}
+.row .status {background:var(--accent-dim);border-color:transparent;padding:8px}
+.row .meta {background:var(--bg);border-radius:6px;padding:3px 8px}
+.row .text button {border:0;background:transparent;padding:0;min-height:28px;font-size:12px;color:var(--muted)}
+.row:has(.status option[value="done"]:checked) h3 {text-decoration:line-through;color:var(--muted)}
+.note {border-top:3px solid var(--accent);box-shadow:0 4px 16px #21374905}
+.note h3 {font-weight:600}
+.note .actions button {font-size:12px;padding:6px 10px}
+#notice:not(:empty) {padding:12px 16px;margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.search-results .section>div {display:flex;flex-wrap:wrap;gap:10px}
+.search-results .note {flex:1 1 260px}
+.search-results .empty {width:100%}
+dialog {box-shadow:0 24px 90px #14253233;max-height:calc(100dvh - 32px);overflow:auto}
+dialog::backdrop {background:#21374966}
+@media(max-width:760px) {
+ .row,.daily-grid .row {display:grid;grid-template-columns:94px minmax(0,1fr) auto;gap:10px;padding:14px 10px}
+ .row .text,.daily-grid .row .text {min-width:0}
+ .row .meta,.daily-grid .row .meta {display:block;grid-column:2;justify-self:start;margin-left:0;font-size:11px}
+ .row>button {grid-column:3;grid-row:1;padding:6px 9px}
+ .row.link-row {display:flex;flex-wrap:nowrap}
+ .section-head>div {width:100%}
+ .section-head>div button {flex:1}
+ .note-grid {grid-template-columns:minmax(0,1fr)}
+ .topbar form {min-width:0}.topbar input {width:100%;min-width:0}
+ .note .actions {gap:6px}
+}
+
+/* Daily focus: work due today gets the main column; future work stays compact. */
+.daily-focus {display:grid;grid-template-columns:minmax(0,1.8fr) minmax(240px,1fr);gap:24px;align-items:start}
+.daily-primary,.daily-secondary {min-width:0}
+.daily-primary>.section {margin:0 0 20px;padding:24px;background:var(--surface);border:1px solid var(--line);border-radius:18px}
+.daily-primary [data-group=today] {border-top:3px solid var(--accent)}
+.daily-primary [data-group=overdue] h2 {color:var(--warning)}
+.daily-primary .section-head {justify-content:flex-start}
+.daily-primary .section-head small {margin-left:auto}
+.focus-badge {font-size:11px;padding:3px 9px;background:var(--accent-dim);color:var(--accent);border-radius:20px}
+.daily-primary .empty {border:0;text-align:left;padding:18px;margin-bottom:14px}
+.clear-overdue {font-size:12px;color:var(--muted);padding:0 8px}
+.task-disclosure {background:var(--surface);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden}
+.task-disclosure summary {display:flex;gap:12px;align-items:center;cursor:pointer;padding:20px;list-style:none;font-size:14px;font-weight:600;min-height:64px}
+.task-disclosure summary::-webkit-details-marker {display:none}
+.task-disclosure summary::after {content:'＋';color:var(--accent);font-size:18px}
+.task-disclosure[open] summary::after {content:'−'}
+.group-count {margin-left:auto;font-size:12px;font-weight:400;color:var(--muted)}
+.task-disclosure .section {margin:0;padding:0 16px 16px}
+.task-disclosure .section-head {min-height:0;margin:0;justify-content:flex-end}
+.task-disclosure .section-head small {display:none}
+.task-disclosure .empty {border:0;padding:16px;font-size:12px}
+.daily-secondary .row {flex-wrap:wrap;padding:12px;gap:8px}
+.daily-secondary .row .text {min-width:100px}
+/* Accessible content tabs retain project data and selected tab after refresh. */
+.project-tabs {display:flex;gap:6px;border-bottom:1px solid var(--line);margin:0 0 24px;padding:0 0 10px}
+.project-tabs [role=tab] {border-color:transparent;background:transparent;color:var(--muted);padding:10px 22px;font-weight:600}
+.project-tabs [aria-selected=true] {background:var(--accent-dim);color:var(--accent);border-color:var(--line)}
+.project-panel[hidden] {display:none}
+.project-panel>.section {margin-top:0}
+.project-panel {min-height:220px}
+@media(max-width:1050px) {.daily-focus {grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px) {
+ .daily-focus {gap:16px}.daily-primary>.section {padding:16px}.task-disclosure summary {padding:16px}
+ .project-tabs {gap:4px;position:sticky;top:66px;z-index:5;background:var(--bg);padding:8px 0;margin-bottom:20px}
+ .project-tabs [role=tab] {flex:1;padding:10px 6px;font-size:13px;white-space:nowrap}
+ .daily-secondary .row {display:grid}.daily-secondary .row .text {min-width:0}
+}
