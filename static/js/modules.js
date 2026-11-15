@@ -91,7 +91,7 @@ window.FlowModules = (() => {
             if(!Array.isArray(data.modules))throw new Error('模組資料格式錯誤');
             entries=data.modules;apply();render();
             (document.querySelector(`[aria-label="啟用${module.name}"]`) || document.querySelector('[data-module-filter][aria-pressed="true"]'))?.focus();
-            state.textContent='已儲存；停用只關閉 App，資料會保留。';
+            state.textContent='已儲存';
             window.dispatchEvent(new CustomEvent('modules-changed'));
         } catch(error) {
             checkbox.checked=module.enabled;
@@ -101,23 +101,22 @@ window.FlowModules = (() => {
     function tile(module) {
         const card=FlowUI.node('article',null,'module-row module-tile'+(!module.enabled?' is-disabled':''));
         card.dataset.moduleCard=module.id;
-        const head=FlowUI.node('div',null,'module-tile-top');
-        const title=FlowUI.node('div');title.append(FlowUI.node('h3',module.name,'module-name'),FlowUI.node('small',module.core?'平台核心':'FocusFlow 內建','module-source'));
+        const head=FlowUI.node('button',null,'module-tile-top');head.type='button';head.setAttribute('aria-label',module.name+'詳細資料');head.onclick=()=>detail(module);
+        const title=FlowUI.node('div');title.append(FlowUI.node('h3',module.name,'module-name'),FlowUI.node('small',module.core?'工作空間基本功能':['tasks','calendar','drive','music'].includes(module.id)?'可連接外部服務':'本機 App','module-source'));
         head.append(icon(module.id),title);
-        card.append(head,FlowUI.node('p',module.description,'module-description'));
+        const arrow=FlowUI.node('span','›','module-row-arrow');arrow.setAttribute('aria-hidden','true');head.append(arrow);card.append(head);
         const footer=FlowUI.node('div',null,'module-tile-footer');
-        const details=FlowUI.node('button','詳細資料','module-button');details.type='button';details.setAttribute('aria-label',module.name+'詳細資料');details.onclick=()=>detail(module);footer.append(details);
+
         if(module.core)footer.append(FlowUI.node('span','固定啟用','module-core'));
         else {
             const label=FlowUI.node('label',null,'module-toggle');
-            const text=FlowUI.node('span',module.enabled?'已啟用':'已停用');
+            const text=FlowUI.node('span',module.enabled?'已啟用':'已停用','sr-only');
             const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=module.enabled;checkbox.setAttribute('aria-label','啟用'+module.name);
             const visual=FlowUI.node('span',null,'module-switch');visual.setAttribute('aria-hidden','true');
             checkbox.addEventListener('change',()=>save(module,checkbox));
             label.append(text,checkbox,visual);footer.append(label);
         }
-        const connection=FlowUI.node('div',null,'module-connections module-card-connections');connectionRows(module,connection);
-        card.append(connection,footer);return card;
+        card.append(footer);return card;
     }
     function render() {
         const list=document.getElementById('module-list'), coreList=document.getElementById('module-core-list');
@@ -154,7 +153,7 @@ window.FlowModules = (() => {
             if(!response.ok)throw new Error('讀取失敗');
             const data=await response.json();if(!Array.isArray(data.modules))throw new Error('資料格式錯誤');
             entries=data.modules;apply();render();
-            state.textContent='設定會跟隨帳號；停用不會刪除資料或撤銷外部服務授權。';
+            state.textContent='';
         }catch(_){state.textContent='暫時無法載入模組設定，請重試。';}finally{clearTimeout(timer);}
     }
     document.getElementById('module-reload')?.addEventListener('click',()=>{api.ready=refresh().then(loadConnections);});

@@ -153,7 +153,14 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 page.evaluate("openApp('modules')")
                 expect(page.locator('#module-list .module-row')).to_have_count(8)
                 expect(page.locator('#module-core-list .module-row')).to_have_count(2)
-                expect(page.locator('[data-module-card="calendar"]')).to_contain_text('尚未連接 Google 帳號')
+                expect(page.locator('[data-module-card="calendar"]')).to_contain_text('可連接外部服務')
+                first=page.locator('#module-list .module-tile').first.bounding_box()
+                assert first['height']<=100, first
+                third=page.locator('#module-list .module-tile').nth(2).bounding_box()
+                assert third['y']+third['height']<844-68, third
+                page.get_by_role('button',name='行事曆詳細資料',exact=True).click()
+                expect(page.locator('#module-detail')).to_contain_text('尚未連接 Google 帳號')
+                page.keyboard.press('Escape')
                 page.locator('#module-search').fill('Google')
                 expect(page.locator('#module-list .module-row')).to_have_count(3)
                 page.locator('#module-search').fill('no matching app')
@@ -199,9 +206,9 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 if os.getenv('FOCUSFLOW_E2E_ARTIFACTS'):
                     output=Path(os.environ['FOCUSFLOW_E2E_ARTIFACTS']);output.mkdir(parents=True,exist_ok=True)
                     page.locator('#view-modules').evaluate('(el)=>el.scrollTop=0')
-                    page.screenshot(path=str(output/'modules-mobile.png'))
+                    page.screenshot(path=str(output/'modules-mobile.png'),animations='disabled')
                     page.set_viewport_size({'width':1440,'height':960})
-                    page.screenshot(path=str(output/'modules-desktop.png'))
+                    page.screenshot(path=str(output/'modules-desktop.png'),animations='disabled')
                 page.goto(base+'/account');page.wait_for_load_state('networkidle')
                 expect(page.locator('#page-title')).to_have_text('帳號與資料')
                 assert page.locator('body').evaluate("e=>e.classList.contains('light-mode')")
