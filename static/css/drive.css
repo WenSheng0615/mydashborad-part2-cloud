@@ -368,7 +368,7 @@ select.custom-select {
 
 .preview-image-box i {
     font-size: 6rem;
-    color: #555;
+    color: var(--text-sub);
 }
 
 .preview-header {
@@ -446,10 +446,10 @@ select.custom-select {
 }
 
 .file-container-wrapper::-webkit-scrollbar-thumb {
-    background: #444;
+    background: var(--scroll-thumb);
     border-radius: 4px;
 }
 
 .file-container-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #666;
+    background: var(--text-sub);
 }

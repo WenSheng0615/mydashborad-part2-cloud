@@ -141,7 +141,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #444;
+    background-color: var(--range-bg);
     transition: .4s;
     border-radius: 34px;
 }
@@ -217,3 +217,5 @@ input:checked+.slider:before {
 #view-settings > .settings-grid {
     flex-shrink: 0;
 }
+
+.profile-info .text-button{color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;min-height:44px}

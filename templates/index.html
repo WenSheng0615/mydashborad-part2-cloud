@@ -11,19 +11,19 @@
     <link rel="manifest" href="/static/manifest.json?v=20261114">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="/static/css/drive.css?v=4001">
+    <link rel="stylesheet" href="/static/css/drive.css?v=9017">
     <link rel="stylesheet" href="/static/css/music.css?v=8017">
     <link rel="stylesheet" href="/static/css/calendar.css?v=8000">
     <link rel="stylesheet" href="/static/css/notes.css?v=4001">
     <link rel="stylesheet" href="/static/css/tasks.css?v=4001">
-    <link rel="stylesheet" href="/static/css/money.css?v=4001">
+    <link rel="stylesheet" href="/static/css/money.css?v=9017">
     <link rel="stylesheet" href="/static/css/chat.css?v=4001">
-    <link rel="stylesheet" href="/static/css/settings.css?v=4002">
+    <link rel="stylesheet" href="/static/css/settings.css?v=9017">
     <link rel="stylesheet" href="/static/css/quiz.css?v=4002">
 
     <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
     <link rel="stylesheet" href="/static/css/components.css?v=8010">
-<link rel="stylesheet" href="/static/css/workbench.css?v=9016"><link rel="stylesheet" href="/static/css/modules.css?v=3"></head>
+<link rel="stylesheet" href="/static/css/workbench.css?v=9017"><link rel="stylesheet" href="/static/css/modules.css?v=3"></head>
 
 <body>
     <script src="/static/js/theme.js?v=9014"></script>
@@ -173,11 +173,14 @@
 
                 isGuest = !!data.is_guest;
 
+                document.querySelectorAll('.app-header').forEach(header=>{const existing=header.querySelector('.user-placeholder');if(existing){existing.classList.add('app-account');}else{const mount=document.createElement('div');mount.className='user-placeholder app-account';header.append(mount);}});
                 document.querySelectorAll('.user-placeholder').forEach(el => {
                     FocusAccount.render(el,data);
                 });
 
                 if (document.getElementById('setting-user-name')) {
+                    const avatar=document.getElementById('setting-user-avatar');
+                    avatar.onerror=()=>{avatar.onerror=null;avatar.src='/static/icons/icon-192.png?v=20261114';};
                     if (data.logged_in) {
                         document.getElementById('setting-user-name').innerText = data.info.name;
                         document.getElementById('setting-user-email').innerText = data.info.email || 'Google Account';
@@ -185,7 +188,7 @@
                     } else {
                         document.getElementById('setting-user-name').innerText = "訪客";
                         document.getElementById('setting-user-email').innerText = "未登入";
-                        document.getElementById('setting-user-avatar').src = "https://via.placeholder.com/150";
+                        document.getElementById('setting-user-avatar').src = "/static/icons/icon-192.png?v=20261114";
                     }
                 }
             } catch (e) { console.error(e); }

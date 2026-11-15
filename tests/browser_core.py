@@ -130,6 +130,23 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 page.reload();page.wait_for_load_state('networkidle')
                 assert page.locator('body').evaluate("e=>e.classList.contains('light-mode')")
                 page.locator('#search-input').fill('E2E');page.locator('#search-form button').click();expect(page.locator('#content')).to_contain_text('E2E Task')
+                # Site-wide visual consistency audit, with no external service writes.
+                page.goto(base+'/');page.wait_for_load_state('networkidle')
+                for app in ('music','drive','notes','calendar','tasks','money','chat','settings','quiz','modules'):
+                    if app in ('music','drive','calendar','tasks'):
+                        # Layout-only inspection: keep guest authorization and cloud APIs unchanged.
+                        page.evaluate("name=>{document.getElementById('launcher').classList.add('hidden');document.getElementById('workspace').classList.add('active');document.getElementById('sidebar').classList.add('active');document.querySelectorAll('.app-view').forEach(e=>e.classList.toggle('active',e.id==='view-'+name));}",app)
+                    else:
+                        page.evaluate('(name)=>openApp(name)',app)
+                    expect(page.locator('#view-'+app)).to_be_visible()
+                    for width in (390,1440):
+                        page.set_viewport_size({'width':width,'height':960})
+                        expect(page.locator('#view-'+app+' .account-trigger')).to_be_visible()
+                        assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), f'{app} body overflow at {width}'
+                        if os.getenv('FOCUSFLOW_E2E_ARTIFACTS'):
+                            output=Path(os.environ['FOCUSFLOW_E2E_ARTIFACTS']);output.mkdir(parents=True,exist_ok=True)
+                            page.screenshot(path=str(output/f'audit-{app}-{width}.png'),animations='disabled')
+                    page.evaluate('goHome()')
                 # Real persisted module preferences, mobile navigation, data preservation.
                 page.goto(base+'/');page.wait_for_load_state('networkidle')
                 page.set_viewport_size({'width':390,'height':844})
@@ -187,6 +204,16 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                     page.screenshot(path=str(output/'modules-desktop.png'))
                 page.goto(base+'/account');page.wait_for_load_state('networkidle')
                 expect(page.locator('#page-title')).to_have_text('帳號與資料')
+                assert page.locator('body').evaluate("e=>e.classList.contains('light-mode')")
+                expect(page.locator('.brand img')).to_have_attribute('src','/static/icons/icon.svg?v=20261114')
+                expect(page.locator('#account-header-control .account-trigger')).to_be_visible()
+                assert page.locator('body').evaluate("e=>getComputedStyle(e).backgroundColor")=='rgb(237, 242, 246)'
+                page.evaluate("localStorage.setItem('theme','dark')")
+                page.reload();page.wait_for_load_state('networkidle')
+                assert not page.locator('body').evaluate("e=>e.classList.contains('light-mode')")
+                page.evaluate("localStorage.setItem('theme','light')")
+                page.reload();page.wait_for_load_state('networkidle')
+
                 expect(page.locator('#content')).to_contain_text('你的試用空間')
                 for width in (320,390,768,1440):
                     page.set_viewport_size({'width':width,'height':900})

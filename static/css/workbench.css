@@ -59,3 +59,6 @@ button.user-badge{border:1px solid var(--border-color);background:var(--input-bg
  .mobile-top .mobile-brand{margin-right:auto}
  #rail-toggle{padding:6px 8px;font-size:11px}
 }
+
+.app-header .app-account{margin-left:auto;flex-shrink:0}.app-header:has(.account-control){position:relative;z-index:30;overflow:visible}.app-account .account-panel{z-index:200}
+@media(max-width:768px){.app-header .app-account{margin-left:auto}.app-header .account-trigger{padding:6px}}

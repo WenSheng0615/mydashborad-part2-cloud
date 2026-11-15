@@ -197,8 +197,8 @@
 }
 
 .tag-gray {
-    background: #333;
-    color: #aaa;
+    background: var(--input-bg);
+    color: var(--text-sub);
 }
 
 .action-icon {
