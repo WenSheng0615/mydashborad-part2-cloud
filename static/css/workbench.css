@@ -24,3 +24,38 @@ body:has(.rail) .rail{max-height:calc(100dvh - var(--mobile-dock-height) - 65px)
 }
 
 button.user-badge{border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-main);font:inherit;cursor:pointer}
+/* Account actions stay together at the right edge. */
+.home-heading .home-actions{margin-left:auto;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.home-heading .home-actions .user-placeholder{width:auto;margin:0}
+.home-heading .home-manage{background:transparent;border:0;color:var(--text-sub);min-height:44px;font:inherit;font-size:13px;cursor:pointer;padding:8px}
+.account-control{position:relative;flex-shrink:0}
+.account-trigger,.account-login{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;max-width:240px;padding:6px 12px;border:1px solid var(--border-color);border-radius:24px;background:var(--input-bg);color:var(--text-main);font:inherit;font-size:13px;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.account-trigger img{width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.account-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.account-chevron{font-size:16px}
+.account-panel{position:absolute;right:0;top:calc(100% + 10px);z-index:150;width:224px;max-width:calc(100vw - 32px);padding:8px;background:var(--card-bg);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:0 14px 42px #14253222;box-sizing:border-box}
+.account-panel[hidden]{display:none}
+.account-identity{padding:10px 12px;font-size:12px;color:var(--text-sub);overflow-wrap:anywhere;border-bottom:1px solid var(--border-color);margin-bottom:6px}
+.account-panel a,.account-panel button{display:flex;align-items:center;width:100%;min-height:44px;box-sizing:border-box;padding:10px 12px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:13px;color:var(--text-main);text-decoration:none;text-align:left;cursor:pointer}
+.account-panel a:hover,.account-panel button:hover{background:var(--accent-dim)}
+.account-panel .account-logout{border-top:1px solid var(--border-color);border-radius:0;margin-top:6px}
+.topbar .desktop-account{margin-left:auto}
+.mobile-account{display:none}
+@media(max-width:768px){
+ .home-heading{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px}
+ .home-heading>img{width:36px;height:36px}
+ .home-heading>div:not(.home-actions){min-width:0}
+ .home-heading h1{font-size:23px;margin:0;letter-spacing:-.04em}
+ .home-heading p,.home-heading>div>span{display:none}
+ .home-heading .home-actions{gap:5px;margin-left:0}
+ .home-heading .home-manage{font-size:11px;padding:4px}
+ .account-trigger{padding:6px;min-width:44px}.account-trigger img{width:30px;height:30px}
+ .account-name,.account-chevron{display:none}
+ .account-login{padding:8px 12px}
+}
+@media(max-width:760px){
+ .desktop-account{display:none}.mobile-account{display:block}
+ .mobile-top{gap:8px}
+ .mobile-top .mobile-brand{margin-right:auto}
+ #rail-toggle{padding:6px 8px;font-size:11px}
+}

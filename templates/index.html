@@ -23,7 +23,7 @@
 
     <link rel="stylesheet" href="/static/css/dashboard.css?v=8000">
     <link rel="stylesheet" href="/static/css/components.css?v=8010">
-<link rel="stylesheet" href="/static/css/workbench.css?v=9010"><link rel="stylesheet" href="/static/css/modules.css?v=3"></head>
+<link rel="stylesheet" href="/static/css/workbench.css?v=9016"><link rel="stylesheet" href="/static/css/modules.css?v=3"></head>
 
 <body>
     <script src="/static/js/theme.js?v=9014"></script>
@@ -43,7 +43,7 @@
         </div>
     </div>
     <div id="launcher">
-        <header class="home-heading"><img src="/static/icons/icon.svg?v=20261114" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="user-placeholder"></div><button type="button" class="home-manage" onclick="openApp('modules')">管理 App</button></header>
+        <header class="home-heading"><img src="/static/icons/icon.svg?v=20261114" alt="" width="52" height="52"><div><p>YOUR PERSONAL CLOUD</p><h1>FocusFlow</h1><span>把今天的工作與生活，放在一起。</span></div><div class="home-actions"><button type="button" class="home-manage" onclick="openApp('modules')">管理 App</button><div class="user-placeholder"></div></div></header>
         <a class="app-icon-card" href="/projects" style="text-decoration:none;color:inherit"><i class="fa-solid fa-layer-group"></i><span>工作空間 / Today</span></a>
         <button type="button" class="app-icon-card" data-module-id="music" onclick="openApp('music')"><i class="fa-solid fa-music"></i><span>Music</span></button>
         <button type="button" class="app-icon-card" data-module-id="drive" onclick="openApp('drive')"><i
@@ -88,7 +88,7 @@
         {% include 'partials/quiz.html' %}
     </main>
 
-    <script src="/static/js/ui.js?v=9010"></script>
+    <script src="/static/js/ui.js?v=9010"></script><script src="/static/js/account-menu.js?v=9016"></script>
     <script src="/static/js/modules.js?v=9010"></script>
     <script src="/static/js/drive.js?v=9010"></script>
     <script src="/static/js/music-sheet.js?v=8013"></script>
@@ -173,32 +173,8 @@
 
                 isGuest = !!data.is_guest;
 
-                let html;
-                if (data.logged_in) {
-                    html = ''; // Authenticated profile text is rendered with DOM nodes below.
-                } else if (data.reauth_required) {
-                    // Google 授權真的失效了（token 被撤銷/過期），跟單純沒登入分開講，才知道要重新走一次 Google 登入
-                    html = `<div style="display:flex; gap:10px;">
-                        <button class="btn-tool" style="width:auto;padding:0 15px;background:var(--accent);color:white;" onclick="checkLogin(true)" title="Google 授權已過期，請重新登入">重新登入 Google</button>
-                        <button class="btn-tool" style="width:auto;padding:0 15px; background:var(--input-bg); color:var(--text-sub);" onclick="location.href='/api/auth/guest'">訪客試用</button>
-                    </div>`;
-                } else if (data.error) {
-                    // 暫時性錯誤（例如連不到 Google API），不是登入失效，不該直接推使用者去重新登入
-                    html = `<span style="font-size:0.85rem;color:var(--text-sub);">連線不穩，<a href="javascript:void(0)" onclick="updateAllUserStatus()" style="color:var(--accent);">重試</a></span>`;
-                } else {
-                    html = `<div style="display:flex; gap:10px;">
-                        <button class="btn-tool" style="width:auto;padding:0 15px;" onclick="checkLogin(true)">Google 登入</button>
-                        <button class="btn-tool" style="width:auto;padding:0 15px; background:var(--input-bg); color:var(--text-sub);" onclick="location.href='/api/auth/guest'">訪客試用</button>
-                    </div>`;
-                }
-
                 document.querySelectorAll('.user-placeholder').forEach(el => {
-                    if(!data.logged_in){el.innerHTML=html;return;}
-                    const badge=document.createElement('button');badge.className='user-badge';badge.type='button';
-                    badge.setAttribute('aria-label','帳號與服務連線');badge.onclick=()=>location.assign('/account');
-                    const image=document.createElement('img');image.alt='';image.src=FlowUI.url(data.info.picture)||'/static/icons/icon-192.png';
-                    const label=document.createElement('span');label.textContent=data.info.name;
-                    badge.append(image,label);el.replaceChildren(badge);
+                    FocusAccount.render(el,data);
                 });
 
                 if (document.getElementById('setting-user-name')) {
