@@ -2,7 +2,6 @@
 window.FlowModules = (() => {
     let entries = null, filter = 'all', query = '', connections = {}, connectionRequest = null;
     const checking = new Set();
-    const state = document.getElementById('module-status') || document.createElement('p');
     const glyphs = {
         workspace:'M3 7h18v14H3z M8 7V3h8v4 M3 12h18', settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
         notes:'M5 3h14v18H5z M8 8h8 M8 12h8 M8 16h5',tasks:'M4 6l2 2 4-4 M13 6h7 M4 14l2 2 4-4 M13 14h7',calendar:'M4 5h16v16H4z M8 3v4 M16 3v4 M4 10h16 M8 14h2 M14 14h2',
@@ -43,7 +42,7 @@ window.FlowModules = (() => {
             try {
                 const data=await FlowUI.request('/api/modules/connections',{signal:controller.signal});
                 if(data.connections && typeof data.connections==='object')connections=data.connections;
-            } catch(_) {state.textContent='連線狀態暫時無法載入，App 設定仍可使用。';}
+            } catch(_) {FlowUI.toast('連線狀態暫時無法載入，App 設定仍可使用。',{duration:0,kind:'error'});}
             finally {clearTimeout(timer);render();connectionRequest=null;}
         })();
         return connectionRequest;
@@ -85,17 +84,17 @@ window.FlowModules = (() => {
         dialog.showModal();
     }
     async function save(module, checkbox) {
-        checkbox.disabled=true;state.textContent='正在儲存…';
+        checkbox.disabled=true;FlowUI.toast('正在儲存…',{duration:0});
         try {
             const data=await FlowUI.request('/api/modules/'+module.id, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:checkbox.checked})});
             if(!Array.isArray(data.modules))throw new Error('模組資料格式錯誤');
             entries=data.modules;apply();render();
             (document.querySelector(`[aria-label="啟用${module.name}"]`) || document.querySelector('[data-module-filter][aria-pressed="true"]'))?.focus();
-            state.textContent='已儲存';
+            FlowUI.toast('已儲存',{kind:'success'});
             window.dispatchEvent(new CustomEvent('modules-changed'));
         } catch(error) {
             checkbox.checked=module.enabled;
-            state.textContent='儲存失敗，已保留原設定：'+error.message;
+            FlowUI.toast('儲存失敗，已保留原設定：'+error.message,{duration:0,kind:'error'});
         } finally {checkbox.disabled=false;}
     }
     function tile(module) {
@@ -149,12 +148,11 @@ window.FlowModules = (() => {
         const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),8000);
         try{
             const response=await fetch('/api/modules',{signal:controller.signal});
-            if(response.status===401){state.textContent='請先登入或進入訪客模式，再設定自己的 App。';return;}
+            if(response.status===401){FlowUI.toast('請先登入或進入訪客模式，再設定自己的 App。',{duration:0});return;}
             if(!response.ok)throw new Error('讀取失敗');
             const data=await response.json();if(!Array.isArray(data.modules))throw new Error('資料格式錯誤');
             entries=data.modules;apply();render();
-            state.textContent='';
-        }catch(_){state.textContent='暫時無法載入模組設定，請重試。';}finally{clearTimeout(timer);}
+        }catch(_){FlowUI.toast('暫時無法載入模組設定，請重試。',{duration:0,kind:'error'});}finally{clearTimeout(timer);}
     }
     document.getElementById('module-reload')?.addEventListener('click',()=>{api.ready=refresh().then(loadConnections);});
     document.getElementById('module-search')?.addEventListener('input',e=>{query=e.target.value.trim().toLocaleLowerCase();render();});

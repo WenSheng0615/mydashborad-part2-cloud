@@ -1,4 +1,25 @@
 window.FlowUI = {
+    toast(message, {duration = 3000, kind = 'info'} = {}) {
+        let notice = document.getElementById('flow-toast');
+        if (!notice) {
+            notice = this.node('div', null, 'flow-toast');notice.id='flow-toast';notice.hidden=true;
+            notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');notice.setAttribute('aria-atomic','true');
+            const text=this.node('span',null,'flow-toast-message');
+            const close=this.node('button','×','flow-toast-close');close.type='button';close.setAttribute('aria-label','關閉通知');
+            close.onclick=()=>this.toast('');notice.append(text,close);document.body.append(notice);
+        }
+        clearTimeout(this._toastTimer);clearTimeout(this._toastHideTimer);
+        const dismiss=()=>{
+            notice.classList.remove('is-visible');
+            this._toastHideTimer=setTimeout(()=>{notice.hidden=true;notice.querySelector('.flow-toast-message').textContent='';},220);
+        };
+        if (!message) {dismiss();return;}
+        notice.querySelector('.flow-toast-message').textContent=message;notice.dataset.kind=kind;
+        notice.hidden=false;
+        // Start the opacity transition after revealing the fixed-position element.
+        void notice.offsetWidth;notice.classList.add('is-visible');
+        if(duration>0)this._toastTimer=setTimeout(dismiss,duration);
+    },
     node(tag, text, className) {
         const el = document.createElement(tag);
         if (text !== undefined && text !== null) el.textContent = String(text);

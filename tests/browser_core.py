@@ -180,8 +180,21 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 expect(page.locator('#module-check-status')).to_contain_text('檢查完成')
                 expect(page.locator('#module-detail')).to_contain_text('尚未連接 Google 帳號')
                 page.keyboard.press('Escape')
+                list_y=page.locator('#module-list').bounding_box()['y']
                 page.get_by_role('checkbox',name='啟用筆記',exact=True).uncheck()
-                expect(page.locator('#module-status')).to_contain_text('已儲存')
+                expect(page.locator('#flow-toast')).to_contain_text('已儲存')
+                assert abs(page.locator('#module-list').bounding_box()['y']-list_y)<1
+                expect(page.locator('#flow-toast')).to_be_visible()
+                toast_box=page.locator('#flow-toast').bounding_box();dock_box=page.locator('.mobile-dock').bounding_box()
+                assert toast_box['y']+toast_box['height']<=dock_box['y']
+                expect(page.locator('#flow-toast')).not_to_be_visible(timeout=4500)
+                assert abs(page.locator('#module-list').bounding_box()['y']-list_y)<1
+                page.evaluate("FlowUI.toast('第一則');FlowUI.toast('第二則')")
+                expect(page.locator('#flow-toast')).to_have_count(1)
+                expect(page.locator('#flow-toast')).to_contain_text('第二則')
+                page.get_by_role('button',name='關閉通知',exact=True).click()
+                expect(page.locator('#flow-toast')).not_to_be_visible()
+
                 expect(page.locator('[data-module-id="notes"].app-icon-card')).not_to_be_visible()
                 assert page.request.get(base+'/api/notes/').status==403
                 page.locator('[data-module-filter=disabled]').click()
@@ -198,7 +211,7 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 page.locator('#alert-modal button').click()
                 page.evaluate("openApp('modules')")
                 page.get_by_role('checkbox',name='啟用筆記',exact=True).check()
-                expect(page.locator('#module-status')).to_contain_text('已儲存')
+                expect(page.locator('#flow-toast')).to_contain_text('已儲存')
                 assert any(n['title']=='E2E Note' for n in page.request.get(base+'/api/notes/').json()['notes'])
                 page.get_by_role('checkbox',name='啟用行事曆',exact=True).check()
                 expect(page.locator('[data-dock="calendar"]')).to_be_visible()
@@ -206,7 +219,9 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                 if os.getenv('FOCUSFLOW_E2E_ARTIFACTS'):
                     output=Path(os.environ['FOCUSFLOW_E2E_ARTIFACTS']);output.mkdir(parents=True,exist_ok=True)
                     page.locator('#view-modules').evaluate('(el)=>el.scrollTop=0')
+                    page.evaluate("FlowUI.toast('已儲存',{duration:0,kind:'success'})")
                     page.screenshot(path=str(output/'modules-mobile.png'),animations='disabled')
+                    page.evaluate("FlowUI.toast('')")
                     page.set_viewport_size({'width':1440,'height':960})
                     page.screenshot(path=str(output/'modules-desktop.png'),animations='disabled')
                 page.goto(base+'/account');page.wait_for_load_state('networkidle')
