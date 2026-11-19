@@ -253,6 +253,44 @@ with tempfile.TemporaryDirectory(prefix='ff-e2e-') as tmp:
                     page.locator('nav [data-page=connections]').click()
                     expect(page.locator('#page-title')).to_have_text('服務連線')
                     page.screenshot(path=str(output/'connections-mobile.png'),full_page=True)
+                # Combined Google authorization UI: mock provider responses only.
+                probes=[];provider_status={}
+                page.route('**/api/auth/user',lambda route:route.fulfill(json={'logged_in':True,'is_guest':False,'info':{'name':'QA','email':'qa@example.test','picture':''}}))
+                page.route('**/api/connections',lambda route:route.fulfill(json={'is_guest':False,'connections':[{'id':key,'status':'unverified','message':'已保存授權','account':'qa@example.test'} for key in ('calendar','drive','tasks','youtube')]+[{'id':'icloud','status':'not_configured','message':'尚未設定'}]}))
+                def probe(route):
+                    key=route.request.url.split('/')[-2];probes.append(key)
+                    route.fulfill(json={'id':key,'status':provider_status.get(key,'connected'),'message':'本次唯讀連線檢查成功'})
+                page.route('**/api/connections/*/check',probe)
+                page.goto(base+'/account?qa=combined#connections');page.wait_for_load_state('networkidle')
+                assert len(probes)==4, (probes,page.locator('#content').inner_text())
+                expect(page.locator('.google-bundle')).to_contain_text('已連線 4 / 4')
+                assert sorted(probes)==['calendar','drive','tasks','youtube']
+                expect(page.locator('[data-action=check]')).to_have_count(4)
+                expect(page.locator('[data-action=check-all]')).to_have_text('檢查全部連線')
+                provider_status['drive']='reauth_required'
+                page.locator('[data-action=check][data-id=drive]').click()
+                expect(page.locator('.google-bundle')).to_contain_text('已連線 3 / 4')
+                page.locator('[data-action=login]').click()
+                expect(page.locator('#dialog-title')).to_have_text('連接所有 Google 服務')
+                expect(page.locator('#dialog-body')).to_contain_text('Calendar、Drive、Tasks 及 YouTube')
+                page.locator('#cancel-dialog').click()
+                provider_status['drive']='connected'
+                page.reload();page.wait_for_load_state('networkidle')
+                expect(page.locator('.google-bundle')).to_contain_text('已連線 4 / 4')
+                provider_status['drive']='unavailable'
+                page.locator('[data-action=check][data-id=drive]').click()
+                expect(page.locator('.google-bundle')).to_contain_text('已連線 3 / 4')
+                expect(page.locator('[data-action=check][data-id=drive]')).to_have_text('重新檢查')
+                provider_status['drive']='connected';page.locator('[data-action=check][data-id=drive]').click()
+                expect(page.locator('.google-bundle')).to_contain_text('已連線 4 / 4')
+                for width in (320,390,768,1440):
+                    page.set_viewport_size({'width':width,'height':900})
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                if os.getenv('FOCUSFLOW_E2E_ARTIFACTS'):
+                    page.screenshot(path=str(output/'google-all-desktop.png'),full_page=True)
+                    page.set_viewport_size({'width':390,'height':844})
+                    page.screenshot(path=str(output/'google-all-mobile.png'),full_page=True)
+                page.unroute('**/api/auth/user');page.unroute('**/api/connections');page.unroute('**/api/connections/*/check')
                 page.goto(base+'/');page.wait_for_load_state('networkidle');page.evaluate("openApp('music');switchTab('playlists')")
                 expect(page.locator('#playlists-list a')).to_have_attribute('href','/account#connections')
                 page.goto(base+'/api/auth/logout');assert page.request.get(base+'/api/workspaces').status==401

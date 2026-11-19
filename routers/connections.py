@@ -1,5 +1,5 @@
 """Account-bound integration management; never returns credentials."""
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, Response, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from routers.workspaces import User
 from database import get_session_info
@@ -8,7 +8,8 @@ from services import connection_service as service
 router=APIRouter(prefix='/api/connections',tags=['connections'])
 
 @router.get('')
-def summary(request:Request,user:User):
+def summary(request:Request,response:Response,user:User):
+    response.headers["Cache-Control"]="no-store"
     from services.module_connections import google_state,icloud_state
     session=get_session_info(request.cookies.get('session_id'))
     modules={'calendar':'calendar','drive':'drive','tasks':'tasks','youtube':'music'}
@@ -57,3 +58,20 @@ def connect_icloud(body:ICloudConnect,user:User):
     except Exception:
         raise HTTPException(409,'無法安全保存連線，請稍後重試') from None
     return {'status':'connected'}
+
+
+@router.post('/{provider}/check')
+def check(provider:str,request:Request,response:Response,user:User):
+    """Read-only provider probe, independent of App visibility/preferences."""
+    if provider not in service.PROVIDERS:raise HTTPException(404,'找不到服務')
+    response.headers['Cache-Control']='no-store'
+    session=get_session_info(request.cookies.get('session_id'))
+    if not session or session.user_email!=user:raise HTTPException(401,'請先登入')
+    from services.module_connections import check_google,check_icloud
+    result=check_icloud(user) if provider=='icloud' else check_google(session,'music' if provider=='youtube' else provider)
+    # Re-read a concurrently disconnected service rather than reporting stale success.
+    if service.guest(user):return {'id':provider,**result}
+    from services.module_connections import google_state,icloud_state
+    latest=icloud_state(user) if provider=='icloud' else google_state(session,'music' if provider=='youtube' else provider)
+    if latest['status']!='unverified':result=latest
+    return {'id':provider,**result}

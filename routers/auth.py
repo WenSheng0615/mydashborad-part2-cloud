@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CREDENTIALS_FILE = os.path.join(BASE_DIR, 'credentials.json')
 
-# Login only establishes identity; provider scopes are requested from Connections.
+# Sign-in requests the four Google integrations together; persist actual grants only.
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile']
 
 
@@ -73,7 +73,8 @@ def start_oauth(request: Request, provider=None):
     session = get_session_info(request.cookies.get("session_id"))
     if provider and (not session or connections.guest(session.user_email)):
         return JSONResponse({"error":"請先保存帳號，再連接私人服務","code":"account_required"},403)
-    scopes = SCOPES + ([connections.GOOGLE_SCOPES[provider]] if provider else [])
+    scopes = SCOPES + ([connections.GOOGLE_SCOPES[provider]] if provider else list(connections.GOOGLE_SCOPES.values()))
+    login_generations = {p:connections.version(session.user_email,p) for p in connections.GOOGLE_SCOPES} if session and not connections.guest(session.user_email) else None
     # A nonce cookie issued on localhost cannot accompany a public callback.
     if IS_DEPLOYED and str(request.base_url).rstrip("/") != APP_URL:
         return JSONResponse({"error": "請從網站的 HTTPS 網址重新登入", "code": "oauth_origin_mismatch", "login_url": APP_URL}, 400)
@@ -88,11 +89,11 @@ def start_oauth(request: Request, provider=None):
         return JSONResponse({"error": "登入請求過多，請稍後再試"}, 503)
     try:
         flow = Flow.from_client_secrets_file(CREDENTIALS_FILE, scopes=scopes, redirect_uri=REDIRECT_URI)
-        url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent', **({'login_hint':session.user_email} if provider else {}))
+        url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent', **({'login_hint':session.user_email} if session and not connections.guest(session.user_email) else {}))
         
         res = JSONResponse({"status": "redirect", "url": url})
         browser_nonce = secrets.token_urlsafe(32)
-        _oauth_attempts[state] = {"browser": browser_nonce, "verifier": flow.code_verifier, "expires": now + OAUTH_TTL, "scopes":scopes, "provider":provider, "session_id":session.session_id if session else None, "owner":session.user_email if session else None, "return_account":request.query_params.get("return_to")=="account", "generation":connections.version(session.user_email,provider) if provider else None}
+        _oauth_attempts[state] = {"browser": browser_nonce, "verifier": flow.code_verifier, "expires": now + OAUTH_TTL, "scopes":scopes, "provider":provider, "session_id":session.session_id if session else None, "owner":session.user_email if session else None, "return_account":request.query_params.get("return_to")=="account", "return_connections":request.query_params.get("return_to")=="connections", "login_generations":login_generations, "login_owner":session.user_email if session else None, "generation":connections.version(session.user_email,provider) if provider else None}
         res.set_cookie(key="oauth_browser", value=browser_nonce, httponly=True, max_age=OAUTH_TTL, samesite="lax", secure=IS_DEPLOYED)
         return res
     except Exception as e:
@@ -137,6 +138,13 @@ async def auth_callback(request: Request):
                 raise
             flow.oauth2session.token=dict(changed_scope.token)
         creds = flow.credentials
+        info=json.loads(creds.to_json())
+        info['scopes']=[]
+        granted=getattr(creds,'granted_scopes',None)
+        if isinstance(granted,(list,tuple)):info['scopes']=list(granted)
+        token_scope=flow.oauth2session.token.get('scope')
+        if isinstance(token_scope,str):info['scopes']=token_scope.split()
+        elif isinstance(token_scope,(list,tuple)):info['scopes']=list(token_scope)
 
         # ✅ 同時獲取使用者 Email
         stage = "userinfo"
@@ -162,14 +170,6 @@ async def auth_callback(request: Request):
         if provider:
             if user_email != attempt['owner']:
                 return _oauth_error('請使用目前登入帳號連接服務',code='connection_account_mismatch')
-            info=json.loads(creds.to_json())
-            info['scopes']=[]
-            granted=getattr(creds,'granted_scopes',None)
-            if isinstance(granted,(list,tuple)):
-                info['scopes']=list(granted)
-            # Never infer permission from requested scopes if Google omitted grant metadata.
-            token_scope=flow.oauth2session.token.get('scope')
-            if isinstance(token_scope,str):info['scopes']=token_scope.split()
             if not connections.permits(info,provider):
                 return _oauth_error('未取得此服務需要的權限，請重新連接',code='connection_scope_denied')
             if not info.get('refresh_token'):
@@ -184,7 +184,11 @@ async def auth_callback(request: Request):
 
         # Preserve existing service grants before replacing an old combined login session.
         previous=get_session_info(old_session_id) if old_session_id else None
-        if previous and previous.user_email==user_email:connections.preserve_legacy(previous)
+        stage = 'service_save'
+        same_owner=previous if previous and previous.user_email==user_email else None
+        expected=attempt.get('login_generations') if attempt.get('login_owner')==user_email else None
+        connections.save_google_login(user_email,info,expected=expected,legacy_session=same_owner)
+        if same_owner:connections.preserve_legacy(same_owner)
         connections.save_profile(user_email,subject,user_info.get('name') or user_email,user_info.get('picture') or '')
         # 登入前如果是訪客模式在用，把訪客期間累積的資料自動接到這個正式帳號上
         stage = "session_merge"
@@ -202,6 +206,7 @@ async def auth_callback(request: Request):
 
         redirect_url = f"/?guest_merged={merged_count}" if merged_count else "/"
         if attempt.get("return_account"):redirect_url="/account"+(f"?guest_merged={merged_count}" if merged_count else "")
+        if attempt.get("return_connections"):redirect_url="/account#connections"
         res = RedirectResponse(url=redirect_url)
         res.set_cookie(key="session_id", value=session_id, httponly=True, max_age=604800, samesite="lax", secure=IS_DEPLOYED)
         res.delete_cookie("code_verifier")

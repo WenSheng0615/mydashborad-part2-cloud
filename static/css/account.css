@@ -4,3 +4,6 @@ body,body.light-mode{--card:var(--card-bg);--ink:var(--text-main);--dim:var(--ac
 .shell{min-height:100dvh}.field{display:grid;gap:6px;margin:12px 0;font-size:12px}.field input{min-width:0;width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:16px}#account-feedback{color:var(--warning);font-size:12px}button:disabled{opacity:.5;cursor:wait}
 
 .brand img{width:36px;height:36px;flex:none}.account-settings .identity{display:none}.account-settings .account-control{margin-left:auto}.account-settings .account-panel{z-index:200}.account-settings header{position:relative;z-index:10}.account-settings .info-card{background:var(--card)}
+
+.google-bundle{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card);font-size:13px}.google-bundle>span{color:var(--accent)}
+@media(max-width:700px){.google-bundle{align-items:flex-start;flex-direction:column;gap:10px}.google-bundle .button{width:100%}}

@@ -39,20 +39,22 @@ def test_guest_can_work_and_does_not_call_google(client,monkeypatch):
     assert client.post('/api/connections/icloud/connect',json={'username':'a@example.test','password':'aaaa-bbbb-cccc-dddd'}).status_code==403
 
 
-def test_identity_scopes_and_guest_content_merge(client,binding,db):
+def test_combined_login_scopes_and_guest_content_merge(client,binding,db):
     client.get('/api/auth/guest')
     space=client.post('/api/workspaces',json={'name':'Trial'}).json()
     project=client.post('/api/workspaces/'+space['id']+'/projects',json={'name':'Project'}).json()
     client.post('/api/workspaces/'+space['id']+'/projects/'+project['id']+'/tasks',json={'title':'Keep task'})
     client.get('/api/auth/login?return_to=account')
     scopes=auth.Flow.from_client_secrets_file.call_args.kwargs['scopes']
-    assert scopes==auth.SCOPES and not any(s in scopes for s in service.GOOGLE_SCOPES.values())
+    assert scopes==auth.SCOPES+list(service.GOOGLE_SCOPES.values())
     result=callback(client);assert result.status_code==307 and result.headers['location'].startswith('/account')
     assert get_session_info(client.cookies.get('session_id')).token_json=='{}'
     assert client.get('/api/workspaces').json()[0]['id']==space['id']
     assert client.get('/api/workspaces/'+space['id']+'/projects/'+project['id']+'/tasks').json()[0]['title']=='Keep task'
     assert client.get('/api/auth/user').json()['logged_in'] is True
-    with db() as d:assert d.query(ServiceConnection).count()==0
+    with db() as d:
+        assert d.query(ServiceConnection).count()==1
+        assert d.get(ServiceConnection,('alice@example.test','tasks')).enabled
 
 
 def test_google_bind_encrypted_then_disconnect_stays_logged_in(alice,binding,db,monkeypatch):
@@ -201,3 +203,103 @@ def test_real_sdk_incremental_or_partial_scope_is_checked(alice,tmp_path,monkeyp
     assert service.read(get_session_info('alice-session'),'drive')[0] is None
     assert bool(service.read(get_session_info('alice-session'),'tasks')[0]) is allow
     auth._oauth_attempts.clear()
+
+
+def grant(flow,providers,refresh=True):
+    value=token();value['scopes']=[service.GOOGLE_SCOPES[p] for p in providers]
+    if not refresh:value.pop('refresh_token')
+    flow.credentials.to_json.return_value=json.dumps(value)
+    flow.credentials.granted_scopes=value['scopes']
+    flow.oauth2session.token={'scope':' '.join(value['scopes'])}
+
+
+def test_combined_login_saves_four_actual_grants_encrypted(client,binding,db):
+    grant(binding[0],service.GOOGLE_SCOPES)
+    client.get('/api/auth/login?return_to=connections')
+    response=callback(client)
+    assert response.status_code==307 and response.headers['location']=='/account#connections'
+    session=get_session_info(client.cookies.get('session_id'))
+    assert session.token_json=='{}'
+    with db() as d:
+        rows=d.query(ServiceConnection).all()
+        assert {r.provider for r in rows}==set(service.GOOGLE_SCOPES)
+        assert all(r.enabled and 'private' not in r.secret for r in rows)
+    for provider in service.GOOGLE_SCOPES:
+        assert service.read(session,provider)[0]['refresh_token']=='refresh-private'
+    assert 'private' not in client.get('/api/connections').text
+
+
+def test_combined_login_does_not_infer_requested_permissions(client,binding,db):
+    grant(binding[0],service.GOOGLE_SCOPES)
+    binding[0].credentials.granted_scopes=None
+    binding[0].oauth2session.token={}
+    client.get('/api/auth/login');assert callback(client).status_code==307
+    with db() as d:assert d.query(ServiceConnection).count()==0
+
+
+def test_partial_login_only_connects_granted_services(client,binding,db):
+    grant(binding[0],['calendar','youtube'])
+    client.get('/api/auth/login');assert callback(client).status_code==307
+    with db() as d:assert {r.provider for r in d.query(ServiceConnection)}=={'calendar','youtube'}
+
+
+def test_combined_callback_preserves_concurrent_disconnect(alice,binding,db):
+    grant(binding[0],service.GOOGLE_SCOPES)
+    alice.get('/api/auth/login')
+    alice.delete('/api/connections/tasks')
+    assert callback(alice).status_code==307
+    with db() as d:
+        assert not d.get(ServiceConnection,('alice@example.test','tasks')).enabled
+        assert d.get(ServiceConnection,('alice@example.test','drive')).enabled
+
+
+def test_existing_account_can_explicitly_reconnect_all(alice,binding,db):
+    service.disconnect('alice@example.test','tasks')
+    grant(binding[0],service.GOOGLE_SCOPES)
+    alice.get('/api/auth/login');assert callback(alice).status_code==307
+    with db() as d:assert all(r.enabled for r in d.query(ServiceConnection))
+
+
+def test_anonymous_login_cannot_resurrect_preexisting_tombstone(client,binding,db):
+    service.disconnect('alice@example.test','tasks')
+    grant(binding[0],service.GOOGLE_SCOPES)
+    client.get('/api/auth/login');assert callback(client).status_code==307
+    with db() as d:assert not d.get(ServiceConnection,('alice@example.test','tasks')).enabled
+
+
+def test_missing_refresh_only_reuses_matching_existing_service(alice,binding,db):
+    service.save('alice@example.test','tasks',token(),'alice@example.test')
+    grant(binding[0],service.GOOGLE_SCOPES,refresh=False)
+    alice.get('/api/auth/login');assert callback(alice).status_code==307
+    with db() as d:assert {r.provider for r in d.query(ServiceConnection)}=={'tasks'}
+
+
+def test_google_login_batch_rolls_back_on_storage_failure(db,monkeypatch):
+    original=service.cipher;calls=[]
+    def fail_later(db):
+        calls.append(1)
+        if len(calls)>1:raise ValueError('Private storage error')
+        return original(db)
+    monkeypatch.setattr(service,'cipher',fail_later)
+    value=token();value['scopes']=list(service.GOOGLE_SCOPES.values())
+    with pytest.raises(ValueError):service.save_google_login('alice@example.test',value)
+    with db() as d:assert d.query(ServiceConnection).count()==0
+
+
+def test_provider_check_independent_of_app_visibility(alice,monkeypatch):
+    service.save('alice@example.test','tasks',token(),'alice@example.test')
+    alice.patch('/api/modules/tasks',json={'enabled':False})
+    monkeypatch.setattr('services.module_connections.check_google',lambda session,module:dict(provider='Google Tasks',status='connected',message='OK'))
+    response=alice.post('/api/connections/tasks/check')
+    assert response.status_code==200 and response.json()['status']=='connected'
+    assert response.headers['cache-control']=='no-store'
+    assert alice.get('/api/connections').headers['cache-control']=='no-store'
+
+
+def test_provider_check_does_not_report_disconnected_token_as_connected(alice,monkeypatch):
+    service.save('alice@example.test','tasks',token(),'alice@example.test')
+    def disconnected(session,module):
+        service.disconnect(session.user_email,'tasks')
+        return dict(provider='Google Tasks',status='connected',message='OK')
+    monkeypatch.setattr('services.module_connections.check_google',disconnected)
+    assert alice.post('/api/connections/tasks/check').json()['status']=='not_connected'

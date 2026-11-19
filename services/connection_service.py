@@ -116,3 +116,41 @@ def owner_for_subject(subject):
     with get_db() as db:
         row=db.query(AccountProfile).filter_by(google_subject=subject).first()
         return row.user_email if row else None
+
+
+def save_google_login(owner,info,expected=None,legacy_session=None):
+    """Atomically save granted services; never infer permission from request scopes.
+
+    Known-account OAuth flows compare generation snapshots. An anonymous flow cannot
+    resurrect a tombstone belonging to an unidentified account; reconnect-all from
+    that signed-in account gives us the required generation snapshot.
+    """
+    if guest(owner):raise ValueError('Account required')
+    legacy={}
+    if legacy_session and legacy_session.user_email==owner:
+        try:legacy=json.loads(legacy_session.token_json)
+        except (ValueError,TypeError):pass
+    saved=[]
+    with get_db() as db:
+        db.execute(text('BEGIN IMMEDIATE'))
+        for provider in GOOGLE_SCOPES:
+            if not permits(info,provider):continue
+            row=db.get(ServiceConnection,(owner,provider))
+            generation=row.generation if row else 0
+            if expected is not None:
+                if generation!=expected.get(provider):continue
+            elif row and not row.enabled:
+                continue
+            value=dict(info)
+            if not value.get('refresh_token'):
+                old=json.loads(cipher(db).decrypt(row.secret.encode())) if row and row.enabled and row.secret else legacy
+                if old and old.get('client_id')==value.get('client_id') and permits(old,provider):
+                    value['refresh_token']=old.get('refresh_token')
+            if not value.get('refresh_token'):continue
+            sealed=cipher(db).encrypt(json.dumps(value).encode()).decode()
+            if not row:
+                row=ServiceConnection(user_email=owner,provider=provider,generation=0);db.add(row)
+            row.enabled=True;row.secret=sealed;row.account=owner;row.generation=generation+1
+            saved.append(provider)
+        db.commit()
+    return saved
